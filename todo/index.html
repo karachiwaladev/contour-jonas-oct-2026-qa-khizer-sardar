@@ -6,9 +6,9 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
 <title>Todo</title>
 <style>
-  :root { --bg:#f6f7f9; --card:#fff; --text:#1c1f24; --muted:#6b7280; --accent:#2563eb; --line:#e5e7eb; --danger:#dc2626; --chip:#e0e7ff; --chip-text:#3730a3; }
+  :root { --bg:#f6f7f9; --card:#fff; --text:#1c1f24; --muted:#6b7280; --accent:#2563eb; --on-accent:#fff; --line:#e5e7eb; --danger:#dc2626; --chip:#e0e7ff; --chip-text:#3730a3; }
   @media (prefers-color-scheme: dark) {
-    :root { --bg:#14161a; --card:#1d2026; --text:#e8eaed; --muted:#9aa0a9; --accent:#60a5fa; --line:#2c3038; --danger:#f87171; --chip:#312e81; --chip-text:#c7d2fe; }
+    :root { --bg:#14161a; --card:#1d2026; --text:#e8eaed; --muted:#9aa0a9; --accent:#60a5fa; --on-accent:#0b1220; --line:#2c3038; --danger:#f87171; --chip:#312e81; --chip-text:#c7d2fe; }
   }
   * { box-sizing: border-box; }
   body { margin:0; background:var(--bg); color:var(--text); font:16px/1.4 system-ui, sans-serif; }
@@ -18,11 +18,11 @@
   input[type=text], input[type=date], select { padding:10px 12px; font:inherit; color:inherit; background:var(--card); border:1px solid var(--line); border-radius:8px; }
   #title { flex:1 1 100%; }
   #tags { flex:1 1 200px; }
-  button { font:inherit; cursor:pointer; border:0; border-radius:8px; padding:10px 14px; background:var(--accent); color:#fff; }
+  button { font:inherit; cursor:pointer; border:0; border-radius:8px; padding:10px 14px; background:var(--accent); color:var(--on-accent); }
   .filters { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-bottom:12px; }
   .segmented { display:flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
   .segmented button { background:var(--card); color:var(--text); border-radius:0; padding:8px 14px; }
-  .segmented button[aria-pressed=true] { background:var(--accent); color:#fff; }
+  .segmented button[aria-pressed=true] { background:var(--accent); color:var(--on-accent); }
   ul { list-style:none; margin:0; padding:0; background:var(--card); border:1px solid var(--line); border-radius:8px; }
   li { display:flex; align-items:center; gap:10px; padding:10px 12px; border-bottom:1px solid var(--line); }
   li:last-child { border-bottom:0; }

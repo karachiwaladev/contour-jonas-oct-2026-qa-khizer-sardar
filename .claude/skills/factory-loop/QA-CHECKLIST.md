@@ -38,6 +38,12 @@ No leftover debug output, TODOs or commented-out code. No secrets or real creden
 project folder. The project `README.md` lists the new behaviour and how to run it. The `CLAUDE.md` index is
 updated and the file is still under 100 lines.
 
+## Evidence comes from the eval
+Items 1 to 6 are answered by checks in `<project>/evals/run.js`, not by looking at the page and saying so. Add a
+check for anything on this list the eval does not yet cover, run it, and cite the check id and the committed
+report in the table below. Anything you can only judge by eye (visual polish, wording) is marked as a manual
+check and not counted as automated evidence.
+
 ## 8. Report
 Put a table in the PR body and in the ticket comment:
 
