@@ -1,0 +1,50 @@
+name: eval
+
+# Re-runs the todo eval on a clean GitHub runner, so the result does not depend on the machine (or the agent)
+# that wrote the code. The check appears on every pull request.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  todo-eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # Actions are pinned to full commit SHAs (the comment gives the tag) so a moved tag cannot change what runs.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0 # full history, so verify.js can read the recorded commit
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+
+      - name: Show the browser and Node versions
+        run: |
+          node --version
+          google-chrome --version
+
+      - name: Run the eval (24 checks and 6 deliberate bugs)
+        run: node todo/evals/run.js
+
+      - name: Verify the committed report (hashes, completeness, consistency)
+        run: node todo/evals/verify.js
+
+      - name: Check the checker (verify.js must reject doctored reports)
+        run: node todo/evals/verify.selftest.js
+
+      - name: Check the fresh run reaches the same verdicts as the committed report
+        run: node todo/evals/verify.js --against "$(ls -t /tmp/todo-eval-results/*.json | head -1)"
+
+      - name: Keep the fresh report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: todo-eval-report
+          path: /tmp/todo-eval-results/
