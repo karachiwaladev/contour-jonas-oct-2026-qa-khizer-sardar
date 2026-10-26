@@ -30,6 +30,23 @@ passes and every deliberate bug is caught.
    requires the fresh run to reach the same verdicts. The green check on the PR comes from GitHub, not from the
    machine that wrote the code. The workflow's actions are pinned to commit SHAs.
 
+## The verification log
+`VERIFICATION-LOG.md` is a running record, with UTC timestamps, of every recorded eval run, every `verify.js`
+run and every CI result, plus a "current status" table at the top. It is generated from
+`verification-log.jsonl`, and it updates itself:
+
+| Command | Adds an entry for |
+|---|---|
+| `node todo/evals/run.js --record` | the recorded eval run (counts, commit, hashes, report path) |
+| `node todo/evals/verify.js --log` | the verification of that report (passed, warnings, failed) |
+| `node todo/evals/log.js ci [runId]` | a finished GitHub Actions run (conclusion, link, duration, commit) |
+
+Each entry stores the SHA-256 of the previous one, so editing, deleting or reordering an earlier entry is
+detected by `node todo/evals/log.js check` (also run by `verify.js` and CI, and covered by the self-test). Do
+not edit the files by hand. The chain cannot stop someone rewriting the whole file; git history shows that. The
+first three entries were backfilled from reports and a CI run that existed before the log, and say so. Runs that
+were not recorded (plain `run.js` runs, which write to the temp folder) are not logged.
+
 ## What is deterministic
 The verdicts: which checks pass or fail and which mutations are caught. Dates in the checks are relative to
 today (or fixed), and waits are generous, so the same code gives the same verdicts on any day, on Windows and on
