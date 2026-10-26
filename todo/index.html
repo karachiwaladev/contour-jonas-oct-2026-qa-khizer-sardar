@@ -31,6 +31,8 @@
   .meta { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:4px; font-size:.85rem; color:var(--muted); }
   .overdue .due { color:var(--danger); font-weight:600; }
   .chip { background:var(--chip); color:var(--chip-text); border-radius:999px; padding:1px 8px; font-size:.8rem; }
+  .repeat { color:var(--accent); font-weight:600; }
+  #status.error { color:var(--danger); }
   li button.del { background:transparent; color:var(--danger); padding:4px 8px; }
   input[type=checkbox] { width:18px; height:18px; }
   .empty, #status { color:var(--muted); text-align:center; padding:16px; }
@@ -43,6 +45,12 @@
   <form id="add">
     <input id="title" type="text" placeholder="What needs doing?" autocomplete="off" required aria-label="New task">
     <input id="due" type="date" aria-label="Due date">
+    <select id="repeat" aria-label="Repeat">
+      <option value="">Never repeat</option>
+      <option value="daily">Daily</option>
+      <option value="weekly">Weekly</option>
+      <option value="monthly">Monthly</option>
+    </select>
     <input id="tags" type="text" placeholder="Tags, comma separated (e.g. work, home)" autocomplete="off" aria-label="Tags">
     <button type="submit">Add</button>
   </form>
@@ -60,8 +68,10 @@
 </main>
 <script>
 // Tasks live in the browser's IndexedDB (client-side only): store "tasks", keyPath "id".
-// A task is { id, title, done, created, dueDate?: 'YYYY-MM-DD', tags?: string[] }.
-// dueDate and tags are optional so tasks saved by the earlier version keep working.
+// A task is { id, title, done, created, dueDate?: 'YYYY-MM-DD', tags?: string[],
+//             repeat?: 'daily'|'weekly'|'monthly', spawned?: boolean }.
+// The optional fields keep tasks saved by earlier versions working. A repeating task needs a dueDate.
+// Completing one leaves it as history (spawned: true) and creates the next occurrence as a new task.
 const DB_NAME = 'todo-app', STORE = 'tasks';
 let db;
 const view = { status: 'all', tag: '' };
@@ -97,6 +107,48 @@ function todayString() {
   const d = new Date();
   const pad = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+// --- Repeat dates (pure functions on 'YYYY-MM-DD' strings) ---
+const REPEAT_LABELS = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' };
+
+function formatDate(y, m, d) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${y}-${pad(m)}-${pad(d)}`;
+}
+
+// The k-th occurrence after `due`. Monthly steps count from the original day and clamp to the month's
+// length (Jan 31 -> Feb 28/29 -> Mar 31), so a short month never drags later dates earlier.
+function stepDue(due, repeat, k) {
+  const [y, m, d] = due.split('-').map(Number);
+  if (repeat === 'monthly') {
+    const total = (m - 1) + k;
+    const yy = y + Math.floor(total / 12);
+    const mm = (total % 12) + 1;
+    return formatDate(yy, mm, Math.min(d, new Date(yy, mm, 0).getDate()));
+  }
+  const dt = new Date(y, m - 1, d + (repeat === 'daily' ? k : 7 * k));
+  return formatDate(dt.getFullYear(), dt.getMonth() + 1, dt.getDate());
+}
+
+// Next due date: counted from the old due date, advanced to the first date after `today`.
+function nextDue(due, repeat, today) {
+  let k = 1;
+  let next = stepDue(due, repeat, k);
+  while (next <= today) next = stepDue(due, repeat, ++k);
+  return next;
+}
+
+async function setDone(task, done) {
+  if (!done || !task.repeat || !task.dueDate || task.spawned) {
+    await putTask({ ...task, done });
+    return;
+  }
+  await putTask({ ...task, done, spawned: true }); // spawned guards against a second copy on re-tick
+  await addTask({
+    title: task.title, done: false, created: Date.now(), tags: task.tags || [],
+    repeat: task.repeat, dueDate: nextDue(task.dueDate, task.repeat, todayString()),
+  });
 }
 
 function parseTags(text) {
@@ -154,7 +206,7 @@ async function render() {
     box.type = 'checkbox';
     box.checked = task.done;
     box.setAttribute('aria-label', 'Mark done');
-    box.onchange = async () => { await putTask({ ...task, done: box.checked }); render(); };
+    box.onchange = async () => { await setDone(task, box.checked); render(); };
 
     const body = document.createElement('div');
     body.className = 'body';
@@ -163,7 +215,7 @@ async function render() {
     title.textContent = task.title; // textContent keeps user input from being parsed as HTML
     body.append(title);
 
-    if (task.dueDate || (task.tags && task.tags.length)) {
+    if (task.dueDate || task.repeat || (task.tags && task.tags.length)) {
       const meta = document.createElement('div');
       meta.className = 'meta';
       if (task.dueDate) {
@@ -171,6 +223,12 @@ async function render() {
         due.className = 'due';
         due.textContent = (overdue ? 'Overdue · ' : 'Due ') + task.dueDate;
         meta.append(due);
+      }
+      if (task.repeat) {
+        const rep = document.createElement('span');
+        rep.className = 'repeat';
+        rep.textContent = '↻ ' + REPEAT_LABELS[task.repeat];
+        meta.append(rep);
       }
       for (const tag of task.tags || []) {
         const chip = document.createElement('span');
@@ -197,7 +255,17 @@ document.getElementById('add').addEventListener('submit', async (e) => {
   if (!title) return;
   const task = { title, done: false, created: Date.now(), tags: parseTags(document.getElementById('tags').value) };
   const due = document.getElementById('due').value;
+  const repeat = document.getElementById('repeat').value;
+  if (repeat && !due) {
+    statusEl.className = 'error';
+    statusEl.textContent = 'Choose a due date for a repeating task.';
+    document.getElementById('due').focus();
+    return;
+  }
+  statusEl.className = '';
+  statusEl.textContent = '';
   if (due) task.dueDate = due;
+  if (repeat) task.repeat = repeat;
   await addTask(task);
   e.target.reset();
   render();
