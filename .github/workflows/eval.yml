@@ -36,6 +36,9 @@ jobs:
       - name: Verify the committed report (hashes, completeness, consistency)
         run: node todo/evals/verify.js
 
+      - name: Check the checker (verify.js must reject doctored reports)
+        run: node todo/evals/verify.selftest.js
+
       - name: Check the fresh run reaches the same verdicts as the committed report
         run: node todo/evals/verify.js --against "$(ls -t /tmp/todo-eval-results/*.json | head -1)"
 

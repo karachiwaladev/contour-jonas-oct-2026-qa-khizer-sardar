@@ -22,6 +22,9 @@ passes and every deliberate bug is caught.
    and `run.js` on disk hash to the recorded values, those same hashes are what is stored in git at the
    recorded commit, the run was made from committed code, timestamps make sense, and no request left the
    machine. It exits 0 only if all pass, and tells you when a report is stale.
+   `node todo/evals/verify.selftest.js` checks the checker: it doctors copies of the report five ways (a hidden
+   failure, a deleted check, a wrong hash, a missed mutation, an outside request) and requires `verify.js` to
+   reject each one and accept the real report.
 3. **CI.** `.github/workflows/eval.yml` runs the eval on a clean GitHub runner for every pull request and on
    `main`, then runs `verify.js` on the committed report and on `verify.js --against <fresh report>`, which
    requires the fresh run to reach the same verdicts. The green check on the PR comes from GitHub, not from the

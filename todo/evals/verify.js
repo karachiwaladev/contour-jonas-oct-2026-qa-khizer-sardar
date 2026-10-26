@@ -18,7 +18,7 @@ const REPO = path.resolve(__dirname, '..', '..');
 const args = process.argv.slice(2);
 const againstIdx = args.indexOf('--against');
 const against = againstIdx >= 0 ? args[againstIdx + 1] : null;
-const positional = args.filter((a, i) => !a.startsWith('--') && i !== againstIdx + 1);
+const positional = args.filter((a, i) => !a.startsWith('--') && (againstIdx < 0 || i !== againstIdx + 1));
 
 const fileHash = (buf) => crypto.createHash('sha256').update(Buffer.from(buf.toString('utf8').replace(/\r\n/g, '\n'))).digest('hex');
 const git = (...a) => execFileSync('git', a, { cwd: REPO, stdio: ['ignore', 'pipe', 'pipe'] });
