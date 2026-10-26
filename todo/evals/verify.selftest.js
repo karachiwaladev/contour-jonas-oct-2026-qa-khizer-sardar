@@ -32,5 +32,23 @@ cases.forEach((c, i) => {
   if (!ok) bad++;
   console.log(`${ok ? 'PASS' : 'FAIL'} ${c.name} (verify.js exit ${code}, wanted ${c.expect})`);
 });
-console.log(bad ? `\nSELF-TEST FAILED: ${bad} case(s)` : `\nSELF-TEST PASSED: verify.js accepts the real report and rejects ${cases.length - 1} kinds of doctoring`);
+// The verification log: the real one must be intact, and doctored copies must be detected.
+const logMod = require('./log.js');
+const realLog = fs.readFileSync(logMod.FILE, 'utf8').split('\n').filter(Boolean);
+const logCases = [
+  { name: 'the real verification log is intact', expectOk: true, lines: realLog },
+  { name: 'a field in an earlier log entry edited', expectOk: false, lines: realLog.map((l, i) => (i === 0 ? l.replace('"event":"eval_run"', '"event":"eval_run","edited":true') : l)) },
+  { name: 'a middle log entry deleted', expectOk: false, lines: realLog.filter((_, i) => i !== 1) },
+  { name: 'two log entries swapped', expectOk: false, lines: realLog.map((l, i, a) => (i === 1 ? a[2] : i === 2 ? a[1] : l)) },
+];
+logCases.forEach((c, i) => {
+  if (realLog.length < 3) return; // needs at least three entries to doctor meaningfully
+  const f = path.join(tmp, `log${i}.jsonl`);
+  fs.writeFileSync(f, c.lines.join('\n') + '\n');
+  const ok = logMod.check({ file: f, skipMd: true }).ok === c.expectOk;
+  if (!ok) bad++;
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${c.name}`);
+});
+
+console.log(bad ? `\nSELF-TEST FAILED: ${bad} case(s)` : `\nSELF-TEST PASSED: verify.js accepts the real report and log and rejects ${cases.length - 1} kinds of report doctoring and 3 kinds of log doctoring`);
 process.exit(bad ? 1 : 0);

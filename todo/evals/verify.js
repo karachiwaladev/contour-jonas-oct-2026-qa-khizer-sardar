@@ -94,6 +94,13 @@ function main() {
   const foreign = r.network_requests.filter((u) => !/^http:\/\/127\.0\.0\.1:/.test(u) && !/^(about|data):/.test(u));
   !foreign.length ? pass('no network request left the machine', `${r.network_requests.length} requests, all local`) : fail('no network request left the machine', foreign.slice(0, 3).join(', '));
 
+  // The verification log itself must be intact.
+  const logMod = require('./log.js');
+  if (fs.existsSync(logMod.FILE)) {
+    const lc = logMod.check();
+    lc.ok ? pass('the verification log is intact', `${lc.entries} entries, hash chain unbroken, markdown in sync`) : fail('the verification log is intact', lc.problems.join('; '));
+  }
+
   // Same verdicts as another run (determinism).
   if (against) {
     const o = JSON.parse(fs.readFileSync(path.resolve(against), 'utf8'));
@@ -103,7 +110,15 @@ function main() {
   }
 
   const bad = results.filter((x) => x.status === 'FAIL').length;
-  console.log(`\n${bad ? 'VERIFICATION FAILED' : 'VERIFIED'}: ${results.filter((x) => x.status === 'PASS').length} passed, ${results.filter((x) => x.status === 'WARN').length} warnings, ${bad} failed`);
+  const nPass = results.filter((x) => x.status === 'PASS').length, nWarn = results.filter((x) => x.status === 'WARN').length;
+  console.log(`\n${bad ? 'VERIFICATION FAILED' : 'VERIFIED'}: ${nPass} passed, ${nWarn} warnings, ${bad} failed`);
+  if (args.includes('--log')) {
+    // Only with --log, so CI and read-only runs never write. Appended after the log check above.
+    const branch = execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: REPO, encoding: 'utf8' }).trim();
+    const commit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: REPO, encoding: 'utf8' }).trim();
+    logMod.append({ event: 'verify', branch, commit, report: path.relative(REPO, file).replace(/\\/g, '/'), result: bad ? 'FAILED' : 'VERIFIED', passed: nPass, warnings: nWarn, failed: bad });
+    console.log('Logged to todo/evals/VERIFICATION-LOG.md');
+  }
   process.exit(bad ? 1 : 0);
 }
 

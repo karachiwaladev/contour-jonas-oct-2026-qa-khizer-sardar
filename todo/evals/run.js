@@ -398,6 +398,17 @@ async function main() {
     fs.writeFileSync(path.join(dir, `${stamp}.json`), JSON.stringify(report, null, 2));
     fs.writeFileSync(path.join(dir, `${stamp}.md`), markdown(report));
     console.log(`\nReport: ${path.join(dir, stamp + '.json')}`);
+    if (RECORD) {
+      // Recorded runs are added to the append-only verification log (todo/evals/VERIFICATION-LOG.md).
+      require('./log.js').append({
+        event: 'eval_run', branch: report.git.branch, commit: report.git.head, dirty: report.git.dirty, ok: report.ok,
+        checks: `${passed}/${checks.length}`, mutations: `${mutations.length - mutBad}/${mutations.length}`,
+        started_at: report.started_at, finished_at: report.finished_at,
+        app_sha256: report.files_under_test[0].sha256, eval_sha256: report.files_under_test[1].sha256,
+        report: path.relative(REPO, path.join(dir, `${stamp}.json`)).replace(/\\/g, '/'), launched_from: report.environment.launched_from,
+      });
+      console.log('Logged to todo/evals/VERIFICATION-LOG.md');
+    }
   }
   console.log(`${report.ok ? 'EVAL PASSED' : 'EVAL FAILED'}: ${passed}/${checks.length} checks, ${mutations.length - mutBad}/${mutations.length} deliberate bugs caught`);
   process.exit(report.ok ? 0 : 1);
