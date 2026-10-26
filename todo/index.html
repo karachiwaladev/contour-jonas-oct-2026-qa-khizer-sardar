@@ -5,25 +5,36 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Todo</title>
 <style>
-  :root { --bg:#f6f7f9; --card:#fff; --text:#1c1f24; --muted:#6b7280; --accent:#2563eb; --line:#e5e7eb; --danger:#dc2626; }
+  :root { --bg:#f6f7f9; --card:#fff; --text:#1c1f24; --muted:#6b7280; --accent:#2563eb; --line:#e5e7eb; --danger:#dc2626; --chip:#e0e7ff; --chip-text:#3730a3; }
   @media (prefers-color-scheme: dark) {
-    :root { --bg:#14161a; --card:#1d2026; --text:#e8eaed; --muted:#9aa0a9; --accent:#60a5fa; --line:#2c3038; --danger:#f87171; }
+    :root { --bg:#14161a; --card:#1d2026; --text:#e8eaed; --muted:#9aa0a9; --accent:#60a5fa; --line:#2c3038; --danger:#f87171; --chip:#312e81; --chip-text:#c7d2fe; }
   }
   * { box-sizing: border-box; }
   body { margin:0; background:var(--bg); color:var(--text); font:16px/1.4 system-ui, sans-serif; }
-  main { max-width:560px; margin:0 auto; padding:32px 16px; }
+  main { max-width:640px; margin:0 auto; padding:32px 16px; }
   h1 { margin:0 0 16px; font-size:1.5rem; }
-  form { display:flex; gap:8px; margin-bottom:16px; }
-  input[type=text] { flex:1; padding:10px 12px; font:inherit; color:inherit; background:var(--card); border:1px solid var(--line); border-radius:8px; }
+  form { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
+  input[type=text], input[type=date], select { padding:10px 12px; font:inherit; color:inherit; background:var(--card); border:1px solid var(--line); border-radius:8px; }
+  #title { flex:1 1 100%; }
+  #tags { flex:1 1 200px; }
   button { font:inherit; cursor:pointer; border:0; border-radius:8px; padding:10px 14px; background:var(--accent); color:#fff; }
+  .filters { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-bottom:12px; }
+  .segmented { display:flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  .segmented button { background:var(--card); color:var(--text); border-radius:0; padding:8px 14px; }
+  .segmented button[aria-pressed=true] { background:var(--accent); color:#fff; }
   ul { list-style:none; margin:0; padding:0; background:var(--card); border:1px solid var(--line); border-radius:8px; }
   li { display:flex; align-items:center; gap:10px; padding:10px 12px; border-bottom:1px solid var(--line); }
   li:last-child { border-bottom:0; }
-  li span { flex:1; word-break:break-word; }
-  li.done span { text-decoration:line-through; color:var(--muted); }
-  li button { background:transparent; color:var(--danger); padding:4px 8px; }
+  .body { flex:1; min-width:0; }
+  .title { word-break:break-word; }
+  li.done .title { text-decoration:line-through; color:var(--muted); }
+  .meta { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:4px; font-size:.85rem; color:var(--muted); }
+  .overdue .due { color:var(--danger); font-weight:600; }
+  .chip { background:var(--chip); color:var(--chip-text); border-radius:999px; padding:1px 8px; font-size:.8rem; }
+  li button.del { background:transparent; color:var(--danger); padding:4px 8px; }
   input[type=checkbox] { width:18px; height:18px; }
   .empty, #status { color:var(--muted); text-align:center; padding:16px; }
+  label.sr { position:absolute; left:-9999px; }
 </style>
 </head>
 <body>
@@ -31,15 +42,29 @@
   <h1>Todo</h1>
   <form id="add">
     <input id="title" type="text" placeholder="What needs doing?" autocomplete="off" required aria-label="New task">
+    <input id="due" type="date" aria-label="Due date">
+    <input id="tags" type="text" placeholder="Tags, comma separated (e.g. work, home)" autocomplete="off" aria-label="Tags">
     <button type="submit">Add</button>
   </form>
+  <div class="filters">
+    <div class="segmented" role="group" aria-label="Status filter">
+      <button type="button" data-status="all" aria-pressed="true">All</button>
+      <button type="button" data-status="incomplete" aria-pressed="false">Incomplete</button>
+      <button type="button" data-status="completed" aria-pressed="false">Completed</button>
+    </div>
+    <label class="sr" for="tagFilter">Filter by tag</label>
+    <select id="tagFilter"><option value="">All tags</option></select>
+  </div>
   <ul id="list"></ul>
   <div id="status" role="status"></div>
 </main>
 <script>
 // Tasks live in the browser's IndexedDB (client-side only): store "tasks", keyPath "id".
+// A task is { id, title, done, created, dueDate?: 'YYYY-MM-DD', tags?: string[] }.
+// dueDate and tags are optional so tasks saved by the earlier version keep working.
 const DB_NAME = 'todo-app', STORE = 'tasks';
 let db;
+const view = { status: 'all', tag: '' };
 
 function openDb() {
   return new Promise((resolve, reject) => {
@@ -60,26 +85,70 @@ function tx(mode, fn) {
 }
 
 const allTasks = () => tx('readonly', (s) => s.getAll());
-const addTask = (title) => tx('readwrite', (s) => s.add({ title, done: false, created: Date.now() }));
+const addTask = (task) => tx('readwrite', (s) => s.add(task));
 const putTask = (task) => tx('readwrite', (s) => s.put(task));
 const deleteTask = (id) => tx('readwrite', (s) => s.delete(id));
 
 const list = document.getElementById('list');
 const statusEl = document.getElementById('status');
+const tagSelect = document.getElementById('tagFilter');
+
+function todayString() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function parseTags(text) {
+  return [...new Set(text.split(',').map((t) => t.trim().toLowerCase()).filter(Boolean))];
+}
+
+// Earliest due date first; tasks without a date go last, in creation order.
+function byDue(a, b) {
+  if (a.dueDate && b.dueDate) return a.dueDate.localeCompare(b.dueDate) || a.created - b.created;
+  if (a.dueDate) return -1;
+  if (b.dueDate) return 1;
+  return a.created - b.created;
+}
+
+function refreshTagOptions(tasks) {
+  const tags = [...new Set(tasks.flatMap((t) => t.tags || []))].sort();
+  if (view.tag && !tags.includes(view.tag)) view.tag = ''; // the last task with that tag is gone
+  tagSelect.replaceChildren(new Option('All tags', ''));
+  for (const tag of tags) tagSelect.append(new Option(tag, tag));
+  tagSelect.value = view.tag;
+}
+
+function matches(task) {
+  if (view.status === 'completed' && !task.done) return false;
+  if (view.status === 'incomplete' && task.done) return false;
+  if (view.tag && !(task.tags || []).includes(view.tag)) return false;
+  return true;
+}
+
+function emptyRow(text) {
+  const li = document.createElement('li');
+  li.className = 'empty';
+  li.textContent = text;
+  return li;
+}
 
 async function render() {
   const tasks = await allTasks();
+  refreshTagOptions(tasks);
+  document.querySelectorAll('[data-status]').forEach((b) =>
+    b.setAttribute('aria-pressed', String(b.dataset.status === view.status)));
+
   list.replaceChildren();
-  if (!tasks.length) {
+  if (!tasks.length) { list.append(emptyRow('No tasks yet.')); return; }
+  const shown = tasks.filter(matches).sort(byDue);
+  if (!shown.length) { list.append(emptyRow('No matching tasks.')); return; }
+
+  const today = todayString();
+  for (const task of shown) {
+    const overdue = !task.done && task.dueDate && task.dueDate < today;
     const li = document.createElement('li');
-    li.className = 'empty';
-    li.textContent = 'No tasks yet.';
-    list.append(li);
-    return;
-  }
-  for (const task of tasks) {
-    const li = document.createElement('li');
-    li.className = task.done ? 'done' : '';
+    li.className = (task.done ? 'done ' : '') + (overdue ? 'overdue' : '');
 
     const box = document.createElement('input');
     box.type = 'checkbox';
@@ -87,27 +156,56 @@ async function render() {
     box.setAttribute('aria-label', 'Mark done');
     box.onchange = async () => { await putTask({ ...task, done: box.checked }); render(); };
 
-    const label = document.createElement('span');
-    label.textContent = task.title; // textContent keeps user input from being parsed as HTML
+    const body = document.createElement('div');
+    body.className = 'body';
+    const title = document.createElement('div');
+    title.className = 'title';
+    title.textContent = task.title; // textContent keeps user input from being parsed as HTML
+    body.append(title);
+
+    if (task.dueDate || (task.tags && task.tags.length)) {
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      if (task.dueDate) {
+        const due = document.createElement('span');
+        due.className = 'due';
+        due.textContent = (overdue ? 'Overdue · ' : 'Due ') + task.dueDate;
+        meta.append(due);
+      }
+      for (const tag of task.tags || []) {
+        const chip = document.createElement('span');
+        chip.className = 'chip';
+        chip.textContent = tag;
+        meta.append(chip);
+      }
+      body.append(meta);
+    }
 
     const del = document.createElement('button');
+    del.className = 'del';
     del.textContent = 'Delete';
     del.onclick = async () => { await deleteTask(task.id); render(); };
 
-    li.append(box, label, del);
+    li.append(box, body, del);
     list.append(li);
   }
 }
 
 document.getElementById('add').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const input = document.getElementById('title');
-  const title = input.value.trim();
+  const title = document.getElementById('title').value.trim();
   if (!title) return;
-  await addTask(title);
-  input.value = '';
+  const task = { title, done: false, created: Date.now(), tags: parseTags(document.getElementById('tags').value) };
+  const due = document.getElementById('due').value;
+  if (due) task.dueDate = due;
+  await addTask(task);
+  e.target.reset();
   render();
 });
+
+document.querySelectorAll('[data-status]').forEach((b) =>
+  b.addEventListener('click', () => { view.status = b.dataset.status; render(); }));
+tagSelect.addEventListener('change', () => { view.tag = tagSelect.value; render(); });
 
 openDb().then((d) => { db = d; render(); })
   .catch(() => { statusEl.textContent = 'Could not open the browser database; tasks will not be saved.'; });
