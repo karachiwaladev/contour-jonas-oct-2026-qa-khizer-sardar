@@ -14,6 +14,30 @@ node todo/evals/run.js --only c12 # run one check while developing
 Needs Node 22+ and Chrome or Edge (`CHROME_PATH` overrides detection). The exit code is 0 only if every check
 passes and every deliberate bug is caught.
 
+## Three ways to check it without trusting the author
+1. **Re-run it.** `node todo/evals/run.js` on your own machine.
+2. **Verify a recorded report.** `node todo/evals/verify.js` re-derives every claim in the newest report in
+   `results/` and prints one line per verification: the summary counts and `ok` flag match the per-check data,
+   every check and mutation that `run.js` defines is in the report (so nothing was quietly removed), the app
+   and `run.js` on disk hash to the recorded values, those same hashes are what is stored in git at the
+   recorded commit, the run was made from committed code, timestamps make sense, and no request left the
+   machine. It exits 0 only if all pass, and tells you when a report is stale.
+3. **CI.** `.github/workflows/eval.yml` runs the eval on a clean GitHub runner for every pull request and on
+   `main`, then runs `verify.js` on the committed report and on `verify.js --against <fresh report>`, which
+   requires the fresh run to reach the same verdicts. The green check on the PR comes from GitHub, not from the
+   machine that wrote the code. The workflow's actions are pinned to commit SHAs.
+
+## What is deterministic
+The verdicts: which checks pass or fail and which mutations are caught. Dates in the checks are relative to
+today (or fixed), and waits are generous, so the same code gives the same verdicts on any day, on Windows and on
+Linux. These fields differ on every run and are not compared: timestamps, durations, ports, the Chrome and Node
+versions, and the commit. `verify.js --against` compares only the verdicts (each check's status, the evidence
+returned by passing checks such as the contrast ratios, and each mutation's outcome).
+
+## Line endings
+Hashes are taken over the file text with CRLF normalized to LF, because git on Windows may check files out with
+CRLF while the repository stores LF.
+
 ## What it checks
 24 checks (`c01` to `c24` in `run.js`) cover adding, filters, tags, due dates, recurring tasks, persistence,
 malformed and old-format data, XSS, keyboard use and focus, accessible names, phone width, failed saves,

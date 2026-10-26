@@ -26,6 +26,9 @@ const RECORD = args.includes('--record');
 const ONLY = args.includes('--only') ? args[args.indexOf('--only') + 1] : null;
 
 const sha256 = (buf) => crypto.createHash('sha256').update(buf).digest('hex');
+// Hash text with line endings normalized to LF, so the hash is the same for the committed blob (LF) and for a
+// Windows checkout where git converts files to CRLF. verify.js uses the same rule.
+const fileHash = (p) => sha256(Buffer.from(fs.readFileSync(p, 'utf8').replace(/\r\n/g, '\n')));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const git = (...a) => { try { return execFileSync('git', a, { cwd: REPO, encoding: 'utf8' }).trim(); } catch (e) { return ''; } };
 
@@ -380,7 +383,8 @@ async function main() {
     schema: 1, project: 'todo',
     started_at: startedAt.toISOString(), finished_at: finishedAt.toISOString(), duration_ms: finishedAt - startedAt,
     git: { branch: git('rev-parse', '--abbrev-ref', 'HEAD'), head: git('rev-parse', 'HEAD'), dirty: git('status', '--porcelain', '--', 'todo').length > 0 },
-    files_under_test: [{ path: 'todo/index.html', sha256: sha256(appBuf) }, { path: 'todo/evals/run.js', sha256: sha256(fs.readFileSync(__filename)) }],
+    files_under_test: [{ path: 'todo/index.html', sha256: fileHash(APP) }, { path: 'todo/evals/run.js', sha256: fileHash(__filename) }],
+    hash_rule: 'sha256 of the file text with CRLF normalized to LF',
     // launched_from is only a hint (Claude Code sets CLAUDECODE in its shells); it is not proof of who ran this.
     environment: { browser: version, node: process.version, platform: `${os.platform()} ${os.release()}`, launched_from: process.env.CLAUDECODE ? 'a Claude Code shell' : 'a plain shell' },
     summary: { checks_total: checks.length, checks_passed: passed, checks_failed: checks.length - passed, mutations_total: mutations.length, mutations_caught: mutations.length - mutBad },
