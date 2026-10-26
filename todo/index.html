@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Todo</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --text:#1c1f24; --muted:#6b7280; --accent:#2563eb; --line:#e5e7eb; --danger:#dc2626; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14161a; --card:#1d2026; --text:#e8eaed; --muted:#9aa0a9; --accent:#60a5fa; --line:#2c3038; --danger:#f87171; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.4 system-ui, sans-serif; }
+  main { max-width:560px; margin:0 auto; padding:32px 16px; }
+  h1 { margin:0 0 16px; font-size:1.5rem; }
+  form { display:flex; gap:8px; margin-bottom:16px; }
+  input[type=text] { flex:1; padding:10px 12px; font:inherit; color:inherit; background:var(--card); border:1px solid var(--line); border-radius:8px; }
+  button { font:inherit; cursor:pointer; border:0; border-radius:8px; padding:10px 14px; background:var(--accent); color:#fff; }
+  ul { list-style:none; margin:0; padding:0; background:var(--card); border:1px solid var(--line); border-radius:8px; }
+  li { display:flex; align-items:center; gap:10px; padding:10px 12px; border-bottom:1px solid var(--line); }
+  li:last-child { border-bottom:0; }
+  li span { flex:1; word-break:break-word; }
+  li.done span { text-decoration:line-through; color:var(--muted); }
+  li button { background:transparent; color:var(--danger); padding:4px 8px; }
+  input[type=checkbox] { width:18px; height:18px; }
+  .empty, #status { color:var(--muted); text-align:center; padding:16px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Todo</h1>
+  <form id="add">
+    <input id="title" type="text" placeholder="What needs doing?" autocomplete="off" required aria-label="New task">
+    <button type="submit">Add</button>
+  </form>
+  <ul id="list"></ul>
+  <div id="status" role="status"></div>
+</main>
+<script>
+// Tasks live in the browser's IndexedDB (client-side only): store "tasks", keyPath "id".
+const DB_NAME = 'todo-app', STORE = 'tasks';
+let db;
+
+function openDb() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(STORE, { keyPath: 'id', autoIncrement: true });
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function tx(mode, fn) {
+  return new Promise((resolve, reject) => {
+    const t = db.transaction(STORE, mode);
+    const result = fn(t.objectStore(STORE));
+    t.oncomplete = () => resolve(result && result.result);
+    t.onerror = () => reject(t.error);
+  });
+}
+
+const allTasks = () => tx('readonly', (s) => s.getAll());
+const addTask = (title) => tx('readwrite', (s) => s.add({ title, done: false, created: Date.now() }));
+const putTask = (task) => tx('readwrite', (s) => s.put(task));
+const deleteTask = (id) => tx('readwrite', (s) => s.delete(id));
+
+const list = document.getElementById('list');
+const statusEl = document.getElementById('status');
+
+async function render() {
+  const tasks = await allTasks();
+  list.replaceChildren();
+  if (!tasks.length) {
+    const li = document.createElement('li');
+    li.className = 'empty';
+    li.textContent = 'No tasks yet.';
+    list.append(li);
+    return;
+  }
+  for (const task of tasks) {
+    const li = document.createElement('li');
+    li.className = task.done ? 'done' : '';
+
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    box.checked = task.done;
+    box.setAttribute('aria-label', 'Mark done');
+    box.onchange = async () => { await putTask({ ...task, done: box.checked }); render(); };
+
+    const label = document.createElement('span');
+    label.textContent = task.title; // textContent keeps user input from being parsed as HTML
+
+    const del = document.createElement('button');
+    del.textContent = 'Delete';
+    del.onclick = async () => { await deleteTask(task.id); render(); };
+
+    li.append(box, label, del);
+    list.append(li);
+  }
+}
+
+document.getElementById('add').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const input = document.getElementById('title');
+  const title = input.value.trim();
+  if (!title) return;
+  await addTask(title);
+  input.value = '';
+  render();
+});
+
+openDb().then((d) => { db = d; render(); })
+  .catch(() => { statusEl.textContent = 'Could not open the browser database; tasks will not be saved.'; });
+</script>
+</body>
+</html>

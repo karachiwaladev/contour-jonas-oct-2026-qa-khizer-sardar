@@ -30,7 +30,7 @@ Keep one line per entry. Add new rows as projects and skills appear.
 ### Projects
 | Folder | Purpose | Entry point |
 |--------|---------|-------------|
-| _(none yet)_ | Add a row when a ticket creates a project folder | `<folder>/README.md` |
+| todo | Client-side todo app (IndexedDB): add, complete, delete tasks | `todo/README.md` |
 
 ### Skills
 | Skill | Use it when | Path |
