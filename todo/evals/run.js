@@ -99,6 +99,24 @@ const MUTATIONS = [
     from: 'nextId: Number.isInteger(t.nextId) ? t.nextId : undefined, // a non-key here would make s.get throw and abort the un-tick', to: 'nextId: t.nextId,' },
   { id: 'm27-array-repeat-accepted', check: 'c26', desc: 'a stored repeat of ["monthly"] is accepted as a real repeat',
     from: "repeat: typeof t.repeat === 'string' && Object.hasOwn(REPEAT_LABELS, t.repeat) ? t.repeat : undefined,", to: 'repeat: Object.hasOwn(REPEAT_LABELS, t.repeat) ? t.repeat : undefined,' },
+  // Ticket #13: the task count footer.
+  { id: 'm28-count-follows-filters', check: 'c44', desc: 'the footer counts only the tasks the filters show',
+    from: 'updateCount(tasks);', to: 'updateCount(tasks.filter(matches));' },
+  { id: 'm29-open-and-done-swapped', check: 'c43', desc: 'the footer\'s open and done counts are swapped',
+    from: 'const done = tasks.filter((t) => t.done).length;', to: 'const done = tasks.filter((t) => !t.done).length;' },
+  { id: 'm30-footer-shown-when-empty', check: 'c43', desc: 'the footer says "0 open · 0 done" when there are no tasks',
+    from: "const key = tasks.length === 0 ? '' : `${open} open · ${done} done`;", to: 'const key = `${open} open · ${done} done`;' },
+  { id: 'm31-footer-stale-when-nothing-shown', check: 'c44', desc: 'the footer is not updated while the filters show no tasks',
+    from: 'updateCount(tasks);', to: 'if (tasks.some(matches)) updateCount(tasks);' },
+  { id: 'm32-stale-footer-after-failed-read', check: 'c46', desc: 'a failed read leaves the old counts on screen',
+    from: "countEl.replaceChildren(); lastCount = ''; // do not leave numbers on screen that may no longer be true", to: '' },
+  { id: 'm33-dot-read-aloud', check: 'c47', desc: 'the separator dot is exposed to screen readers',
+    from: "dot.setAttribute('aria-hidden', 'true');", to: '' },
+  // Found by the independent security review of ticket #13.
+  { id: 'm34-footer-reannounced', check: 'c49', desc: 'the footer is rewritten on every render even when the counts did not change',
+    from: 'if (key === lastCount) return;', to: '' },
+  { id: 'm35-unconvertible-title-blocks-list', check: 'c48', desc: 'a stored title that cannot be converted to text stops the whole list loading',
+    from: 'try { return String(v ?? \'\'); } catch (e) { return \'\'; }', to: 'return String(v ?? \'\');' },
 ];
 
 // ---- Page-side helpers, injected after every navigation ----
@@ -393,7 +411,7 @@ async function main() {
         T.$('priority').value = 'high'; await T.add('High one'); T.$('priority').value = 'low'; await T.add('Low one');
         T.$('title').value = 'x'; T.$('repeat').value = 'daily'; T.$('add').requestSubmit(); await T.wait(200);
         const probes = { 'task title': 'li:not(.done) .title', 'completed task title': 'li.done .title', 'due date': 'li:not(.overdue) .meta .due', 'overdue date': '.overdue .due', 'repeat badge': '.repeat', 'tag chip': '.chip',
-          'High badge': '.prio-high', 'Medium badge': '.prio-medium', 'Low badge': '.prio-low', 'Edit button': 'li button.edit',
+          'High badge': '.prio-high', 'Medium badge': '.prio-medium', 'Low badge': '.prio-low', 'Edit button': 'li button.edit', 'task count footer': '#count',
           'delete button': 'li button.del', 'Add button': '#add button', 'selected filter': '.segmented [aria-pressed=true]', 'other filter': '.segmented [aria-pressed=false]', 'error message': '#status.error' };
         const bad = []; const seen = {};
         const measure = (probes) => { for (const [name, sel] of Object.entries(probes)) {
@@ -601,6 +619,94 @@ async function main() {
         await T.click(T.byTitle('N2')[0].querySelector('input'));          // tick: must spawn a valid date
         return { n1: T.byTitle('N1').map((x) => (x.classList.contains('done') ? 'done' : 'open')), n2: T.byTitle('N2').map((x) => x.querySelector('.due').textContent), status: T.$('status').textContent }`));
       eq(r, { n1: ['open'], n2: [`Due ${Y}-01-31`, `Due ${Y}-02-${febLast}`], status: '' }, 'malformed nextId and anchorDay');
+    } },
+    // ---- Ticket #13: the task count footer ----
+    { id: 'c43', name: 'The footer is empty with no tasks (a "0 open · 0 done" would be wrong), then shows open and done counts that follow adding, ticking, un-ticking and deleting', run: async () => {
+      await fresh();
+      const r = await ev(T(`const foot = () => (T.$('count').textContent === '' ? '(empty)' : T.$('count').textContent);
+        const out = { empty: foot() };
+        await T.add('A'); out.one = foot(); await T.add('B'); await T.add('C'); out.three = foot();
+        await T.click(T.rowFor('A').querySelector('input')); out.tickA = foot();
+        await T.click(T.rowFor('B').querySelector('input')); out.tickB = foot();
+        await T.click(T.rowFor('A').querySelector('input')); out.untickA = foot();
+        await T.click(T.rowFor('B').querySelector('button.del')); out.deleteDoneB = foot();
+        await T.click(T.rowFor('C').querySelector('button.del')); out.deleteOpenC = foot();
+        await T.click(T.rowFor('A').querySelector('button.del')); out.allGone = foot();
+        return out`));
+      eq(r, { empty: '(empty)', one: '1 open · 0 done', three: '3 open · 0 done', tickA: '2 open · 1 done', tickB: '1 open · 2 done', untickA: '2 open · 1 done',
+        deleteDoneB: '2 open · 0 done', deleteOpenC: '1 open · 0 done', allGone: '(empty)' }, 'footer counts');
+    } },
+    { id: 'c44', name: 'The footer counts every task whatever the status, tag and priority filters show, and stays right when a filter shows nothing', run: async () => {
+      await fresh();
+      const r = await ev(T(`const foot = () => (T.$('count').textContent === '' ? '(empty)' : T.$('count').textContent);
+        const addP = async (title, p, tags) => { T.$('priority').value = p; await T.add(title, '', '', tags); };
+        await addP('H1', 'high', 'work'); await addP('H2', 'high', 'home'); await addP('L1', 'low', 'work'); await T.click(T.rowFor('H2').querySelector('input'));
+        const setSel = async (id, v) => { T.$(id).value = v; T.$(id).dispatchEvent(new Event('change')); await T.wait(300); };
+        const out = { all: foot() };
+        await setSel('priorityFilter', 'low'); out.lowFilter = foot(); out.shownLow = T.rows().length;
+        await T.click(document.querySelector('[data-status=completed]')); out.lowDone = foot(); out.nothingShown = !!document.querySelector('#list li.empty');
+        T.$('priority').value = 'medium'; await T.add('X'); out.addWhileNothingShown = foot();   // X is hidden by the filters, the footer must still move
+        await setSel('tagFilter', 'work'); out.tagFilter = foot();
+        return out`));
+      eq(r, { all: '2 open · 1 done', lowFilter: '2 open · 1 done', shownLow: 1, lowDone: '2 open · 1 done', nothingShown: true, addWhileNothingShown: '3 open · 1 done', tagFilter: '3 open · 1 done' }, 'footer under filters');
+    } },
+    { id: 'c45', name: 'Recurring tasks: ticking keeps open the same and adds a done, un-ticking undoes it, and editing changes nothing', run: async () => {
+      await fresh();
+      const r = await ev(T(`const foot = () => T.$('count').textContent;
+        await T.add('Rec', T.ds(-3), 'daily'); await T.add('Other'); const out = { start: foot() };
+        await T.click(T.rowFor('Rec').querySelector('input')); out.ticked = foot();
+        await T.click(T.byTitle('Rec').find((x) => x.classList.contains('done')).querySelector('input')); out.unticked = foot();
+        await T.click(T.rowFor('Rec').querySelector('input')); out.reticked = foot();
+        await T.click(T.byTitle('Rec').find((x) => !x.classList.contains('done')).querySelector('button.edit')); out.whileEditing = foot();
+        T.setField('f-title', 'Rec renamed'); T.ctl('save').click(); await T.wait(500); out.afterSave = foot();
+        return out`));
+      eq(r, { start: '2 open · 0 done', ticked: '2 open · 1 done', unticked: '2 open · 0 done', reticked: '2 open · 1 done', whileEditing: '2 open · 1 done', afterSave: '2 open · 1 done' }, 'recurring counts');
+    } },
+    { id: 'c46', name: 'Malformed records count as open, and a failed read clears the footer instead of leaving stale numbers', run: async () => {
+      await fresh();
+      const r = await ev(T(`const foot = () => (T.$('count').textContent === '' ? '(empty)' : T.$('count').textContent);
+        await T.raw((s) => s.add({ title: 'Old', created: 1 })); await T.raw((s) => s.add({ title: 'Bad', done: 'yes', created: 2 }));
+        await T.raw((s) => s.add({ title: 'Done', done: true, created: 3 })); await T.raw((s) => s.add({ title: { x: 1 }, done: 5, created: 4 }));
+        await window.render(); const out = { malformed: foot() };
+        const real = db.transaction.bind(db);
+        db.transaction = (store, mode) => { if (mode === 'readonly') throw new DOMException('blocked', 'InvalidStateError'); return real(store, mode); };
+        await window.render(); out.failedRead = { footer: foot(), status: T.$('status').textContent };
+        db.transaction = real; await window.render(); out.recovered = foot();
+        return out`));
+      eq(r, { malformed: '3 open · 1 done', failedRead: { footer: '(empty)', status: 'Could not read your tasks from browser storage.' }, recovered: '3 open · 1 done' }, 'malformed records and a failed read');
+    } },
+    { id: 'c47', name: 'The footer sits below the list, is a polite live region that is never hidden (even when empty), and hides its separator dot from screen readers', run: async () => {
+      await fresh();
+      const r = await ev(T(`const c = T.$('count'); const out = { beforeAnyTask: { hiddenAttr: c.hasAttribute('hidden'), display: getComputedStyle(c).display, text: c.textContent } };
+        await T.add('A');
+        Object.assign(out, { tag: c.tagName, live: c.getAttribute('aria-live'), text: c.textContent, dotHidden: (c.querySelector('[aria-hidden=true]') || {}).textContent,
+          spoken: [...c.childNodes].filter((n) => !(n.nodeType === 1 && n.getAttribute('aria-hidden') === 'true')).map((n) => n.textContent).join(''),
+          belowList: !!(T.$('list').compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING), insideMain: !!c.closest('main'), focusable: c.tabIndex >= 0, hiddenAttr: c.hasAttribute('hidden') });
+        await T.click(T.rowFor('A').querySelector('button.del')); out.afterLastDelete = { hiddenAttr: c.hasAttribute('hidden'), display: getComputedStyle(c).display, text: c.textContent };
+        return out`));
+      eq(r, { beforeAnyTask: { hiddenAttr: false, display: 'block', text: '' }, tag: 'FOOTER', live: 'polite', text: '1 open · 0 done', dotHidden: '·', spoken: '1 open  0 done', belowList: true, insideMain: true,
+        focusable: false, hiddenAttr: false, afterLastDelete: { hiddenAttr: false, display: 'block', text: '' } }, 'footer structure');
+    } },
+    { id: 'c48', name: 'A stored record whose title cannot be converted to text (such as {toString: 5}) no longer stops the list from loading', run: async () => {
+      await fresh();
+      const r = await ev(T(`await T.raw((s) => s.add({ title: { toString: 5, valueOf: 5 }, done: false, created: 1 })); await T.raw((s) => s.add({ title: 'Fine', done: false, created: 2 }));
+        await window.render();
+        return { rows: T.rows().map(T.titleOf), footer: T.$('count').textContent, status: T.$('status').textContent }`));
+      eq(r, { rows: ['', 'Fine'], footer: '2 open · 0 done', status: '' }, 'list with an unconvertible title');
+    } },
+    { id: 'c49', name: 'An unchanged count is not rewritten, so filtering or opening an edit does not make a screen reader announce the same numbers again', run: async () => {
+      await fresh();
+      const r = await ev(T(`await T.add('A'); await T.add('B', '', '', 'x'); const c = T.$('count'); const first = c.firstChild; const same = () => c.firstChild === first;
+        const out = {};
+        await T.click(document.querySelector('[data-status=incomplete]')); out.afterStatusFilter = same();
+        T.$('tagFilter').value = 'x'; T.$('tagFilter').dispatchEvent(new Event('change')); await T.wait(300); out.afterTagFilter = same();
+        T.$('priorityFilter').value = 'high'; T.$('priorityFilter').dispatchEvent(new Event('change')); await T.wait(300); out.afterPriorityFilter = same();
+        T.$('priorityFilter').value = ''; T.$('priorityFilter').dispatchEvent(new Event('change')); T.$('tagFilter').value = ''; T.$('tagFilter').dispatchEvent(new Event('change')); await T.wait(300);
+        await T.click(T.rowFor('A').querySelector('button.edit')); out.afterOpeningEdit = same();
+        T.ctl('cancel').click(); await T.wait(300); out.afterCancelling = same();
+        await T.click(T.rowFor('A').querySelector('input')); out.afterTicking = !same();   // a real change does rewrite it
+        out.text = c.textContent; return out`));
+      eq(r, { afterStatusFilter: true, afterTagFilter: true, afterPriorityFilter: true, afterOpeningEdit: true, afterCancelling: true, afterTicking: true, text: '1 open · 1 done' }, 'footer rewrites');
     } },
     { id: 'c24', name: 'The only network requests are for the local page itself', run: async () => {
       const foreign = network.filter((u) => !u.startsWith(origin + '/') && !u.startsWith('about:') && !u.startsWith('data:'));

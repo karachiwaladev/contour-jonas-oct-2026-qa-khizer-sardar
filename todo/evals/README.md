@@ -59,13 +59,15 @@ Hashes are taken over the file text with CRLF normalized to LF, because git on W
 CRLF while the repository stores LF.
 
 ## What it checks
-42 checks (`c01` to `c42` in `run.js`) cover adding, filters, tags, due dates, priority (default, ordering, the
+49 checks (`c01` to `c49` in `run.js`) cover adding, filters, tags, due dates, priority (default, ordering, the
 priority filter and combinations), editing (every field, keyboard Enter and Escape, validation, a kept draft, no
 stale overwrite, a task deleted elsewhere, a filter hiding the edited task), recurring tasks (including the last
-supported date and an edited next occurrence), persistence, malformed and old-format data, XSS, keyboard use and
-focus, accessible names, phone width (including with the edit form open), failed saves, WCAG AA colour contrast
-in light and dark, and that the page makes no outside network requests. The 27 deliberate bugs cover each area,
-including every defect the independent security review of ticket #12 found.
+supported date and an edited next occurrence), the task count footer (counts under filters and recurring ticks,
+empty when there are no tasks, malformed records, a failed read, screen-reader structure, no repeated
+announcements), persistence, malformed and old-format data (including a title that cannot be converted to text),
+XSS, keyboard use and focus, accessible names, phone width (including with the edit form open), failed saves, WCAG
+AA colour contrast in light and dark, and that the page makes no outside network requests. The 35 deliberate bugs
+cover each area, including every defect the independent security reviews of tickets #12 and #13 found.
 
 ## How you know the checks can fail
 The eval also runs a **mutation self-check**: it serves copies of the app with a deliberate bug (for example
