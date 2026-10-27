@@ -30,7 +30,12 @@ jobs:
           node --version
           google-chrome --version
 
-      - name: Run the eval (24 checks and 6 deliberate bugs)
+      - name: Test the factory guard hook and the ticket-text extractor
+        run: |
+          node .claude/hooks/guard.selftest.js
+          node .claude/skills/factory-loop/scripts/ticket-text.selftest.js
+
+      - name: Run the eval (all checks and deliberate bugs)
         run: node todo/evals/run.js
 
       - name: Verify the committed report (hashes, completeness, consistency)
