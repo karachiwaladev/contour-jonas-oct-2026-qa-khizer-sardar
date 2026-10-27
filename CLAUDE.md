@@ -30,7 +30,7 @@ Keep one line per entry. Add new rows as projects and skills appear.
 ### Projects
 | Folder | Purpose | Entry point |
 |--------|---------|-------------|
-| todo | Client-side todo app (IndexedDB): tasks, filters, due dates, tags, recurring, priority, edit. Eval: `todo/evals/` | `todo/README.md` |
+| todo | Client-side todo app (IndexedDB): tasks, filters, search, due dates, tags, recurring, priority, edit. Eval: `todo/evals/` | `todo/README.md` |
 
 ### Skills
 | Skill | Use it when | Path |
