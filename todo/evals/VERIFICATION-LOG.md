@@ -9,8 +9,8 @@ detected by `node todo/evals/log.js check` (also run by `verify.js` and CI).
 
 | Event | Last at (UTC) | Result | Commit |
 |---|---|---|---|
-| Eval run | 2026-10-26T12:06:44.644Z | PASSED | `f77c968b74` |
-| verify.js | 2026-10-26T12:06:45.121Z | VERIFIED | `f77c968b74` |
+| Eval run | 2026-10-27T05:55:13.330Z | PASSED | `a98f76b628` |
+| verify.js | 2026-10-27T05:55:13.799Z | VERIFIED | `a98f76b628` |
 | CI | 2026-10-26T12:05:52.496Z | SUCCESS | `3281c36522` |
 
 ## History (oldest first)
@@ -22,5 +22,7 @@ detected by `node todo/evals/log.js check` (also run by `verify.js` and CI).
 | 3 | 2026-10-26T12:05:52.496Z | CI (GitHub Actions) | SUCCESS | chore-eval-gate | `3281c36522` | eval run [40317427421](https://github.com/karachiwaladev/contour-jonas-oct-2026-qa-khizer-sardar/actions/runs/40317427421), pull_request, 58 s, for commit `3281c36522` |
 | 4 | 2026-10-26T12:06:44.644Z | eval run | PASSED | chore-eval-gate | `f77c968b74` | 24/24 checks, 6/6 deliberate bugs caught; app sha256 `11126724b7…`; [report](todo/evals/results/2026-10-26T12-06-06-445Z.json) |
 | 5 | 2026-10-26T12:06:45.121Z | verify.js | VERIFIED | chore-eval-gate | `f77c968b74` | 13 passed, 0 warnings, 0 failed on [2026-10-26T12-06-06-445Z.json](todo/evals/results/2026-10-26T12-06-06-445Z.json) |
+| 6 | 2026-10-27T05:55:13.330Z | eval run | PASSED | ticket-12-task-priority | `a98f76b628` | 42/42 checks, 27/27 deliberate bugs caught; app sha256 `5095bd194c…`; [report](todo/evals/results/2026-10-27T05-53-21-388Z.json) |
+| 7 | 2026-10-27T05:55:13.799Z | verify.js | VERIFIED | ticket-12-task-priority | `a98f76b628` | 13 passed, 0 warnings, 0 failed on [2026-10-27T05-53-21-388Z.json](todo/evals/results/2026-10-27T05-53-21-388Z.json) |
 
-5 entries.
+7 entries.
