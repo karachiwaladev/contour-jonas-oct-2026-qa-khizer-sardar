@@ -106,9 +106,18 @@ function checkGit(word, args) {
       if (a === '--force' || a === '-f' || a === '--force-if-includes' || a === '--mirror' || a.startsWith('--force-with-lease')) return 'forced git push (--force, -f, --force-with-lease, --mirror)';
       if (/^-[A-Za-z]+$/.test(a) && a.includes('f')) return 'forced git push (-f in a flag cluster)';
       if (/^\+\S/.test(a)) return 'forced git push (+refspec)';
+      if (a === '--delete' || /^-[A-Za-z]*d[A-Za-z]*$/.test(a)) return 'git push --delete (removes a remote branch or tag)';
+      if (/^:\S/.test(a)) return 'git push with an empty source (:branch deletes the remote branch)';
     }
   }
   if (sub === 'rm' && recursiveForce(rest)) return 'git rm -rf';
+  if (sub === 'reset' && rest.includes('--hard')) return 'git reset --hard (discards uncommitted work)';
+  if (sub === 'clean') {
+    // -n / --dry-run only previews what would be removed, so it stays allowed even next to -f.
+    const dry = rest.some((a) => a === '--dry-run' || (/^-[A-Za-z]+$/.test(a) && a.includes('n')));
+    const force = rest.some((a) => a === '--force' || (/^-[A-Za-z]+$/.test(a) && a.includes('f')));
+    if (force && !dry) return 'git clean -f (deletes untracked files)';
+  }
   return null;
 }
 
