@@ -9,8 +9,8 @@ detected by `node todo/evals/log.js check` (also run by `verify.js` and CI).
 
 | Event | Last at (UTC) | Result | Commit |
 |---|---|---|---|
-| Eval run | 2026-10-27T06:47:22.593Z | PASSED | `1c52886857` |
-| verify.js | 2026-10-27T06:47:23.075Z | VERIFIED | `1c52886857` |
+| Eval run | 2026-10-27T07:30:41.600Z | PASSED | `7e154f1e47` |
+| verify.js | 2026-10-27T07:30:42.011Z | VERIFIED | `7e154f1e47` |
 | CI | 2026-10-26T12:05:52.496Z | SUCCESS | `3281c36522` |
 
 ## History (oldest first)
@@ -28,5 +28,7 @@ detected by `node todo/evals/log.js check` (also run by `verify.js` and CI).
 | 9 | 2026-10-27T06:44:21.691Z | verify.js | FAILED | ticket-13-task-count-footer | `ecc8c74468` | 10 passed, 0 warnings, 3 failed on [2026-10-27T06-42-02-428Z.json](todo/evals/results/2026-10-27T06-42-02-428Z.json) |
 | 10 | 2026-10-27T06:47:22.593Z | eval run | PASSED | ticket-13-task-count-footer | `1c52886857` | 49/49 checks, 35/35 deliberate bugs caught; app sha256 `bd87a30824…`; [report](todo/evals/results/2026-10-27T06-45-03-545Z.json) |
 | 11 | 2026-10-27T06:47:23.075Z | verify.js | VERIFIED | ticket-13-task-count-footer | `1c52886857` | 13 passed, 0 warnings, 0 failed on [2026-10-27T06-45-03-545Z.json](todo/evals/results/2026-10-27T06-45-03-545Z.json) |
+| 12 | 2026-10-27T07:30:41.600Z | eval run | PASSED | ticket-18-search | `7e154f1e47` | 55/55 checks, 39/39 deliberate bugs caught; app sha256 `e57ab7468c…`; [report](todo/evals/results/2026-10-27T07-27-54-248Z.json) |
+| 13 | 2026-10-27T07:30:42.011Z | verify.js | VERIFIED | ticket-18-search | `7e154f1e47` | 13 passed, 0 warnings, 0 failed on [2026-10-27T07-27-54-248Z.json](todo/evals/results/2026-10-27T07-27-54-248Z.json) |
 
-11 entries.
+13 entries.
