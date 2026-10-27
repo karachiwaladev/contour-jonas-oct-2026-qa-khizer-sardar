@@ -47,25 +47,77 @@ const MUTATIONS = [
   { id: 'm1-html-injection', check: 'c08', desc: 'render the task title with innerHTML instead of textContent',
     from: 'title.textContent = task.title;', to: 'title.innerHTML = task.title;' },
   { id: 'm2-untick-keeps-spawn', check: 'c13', desc: 'un-ticking no longer removes the spawned next occurrence',
-    from: 'if (next && next.done !== true) s.delete(stored.nextId);', to: '/* mutation: spawn kept */' },
+    from: 'if (next) s.delete(stored.nextId);', to: '/* mutation: spawn kept */' },
   { id: 'm3-monthly-drift', check: 'c16', desc: 'monthly repeats forget the starting day of month',
     from: 'Math.min(anchor || d,', to: 'Math.min(d,' },
   { id: 'm4-focus-lost', check: 'c20', desc: 'keyboard focus is not restored after the list re-renders',
     from: 'if (control) control.focus();', to: '/* mutation: focus not restored */' },
   { id: 'm5-repeat-without-date', check: 'c11', desc: 'a repeating task is accepted without a due date',
-    from: "if ((repeat && !due) || (due && !validDue(due))) {", to: 'if ((due && !validDue(due))) {' },
+    from: "if (repeat && !due) return { message: 'Choose a due date for a repeating task.', field: 'due' };", to: '' },
   { id: 'm6-no-persistence', check: 'c09', desc: 'tasks are not saved to IndexedDB',
     from: "const addTask = (task) => tx('readwrite', (s) => s.add(task));", to: "const addTask = (task) => tx('readwrite', (s) => s.clear());" },
+  { id: 'm7-spawn-drops-priority', check: 'c29', desc: 'the next occurrence of a recurring task does not inherit its priority',
+    from: 'priority: stored.priority, // inherited', to: '' },
+  { id: 'm8-filter-ignores-priority', check: 'c28', desc: 'the priority filter does nothing',
+    from: 'if (view.priority && task.priority !== view.priority) return false;', to: '' },
+  { id: 'm9-escape-saves', check: 'c31', desc: 'pressing Escape in the edit form saves instead of cancelling',
+    from: "if (e.key === 'Escape' && !e.isComposing && !e.defaultPrevented) { e.preventDefault(); cancelEdit(task); }", to: "if (e.key === 'Escape' && !e.isComposing && !e.defaultPrevented) { e.preventDefault(); commitEdit(task); }" },
+  { id: 'm10-untick-deletes-edited', check: 'c35', desc: 'un-ticking deletes a next occurrence the user has edited',
+    from: '(next.done === true || next.edited === true)', to: '(next.done === true)' },
+  { id: 'm11-order-ignores-priority', check: 'c27', desc: 'priority no longer breaks ties in the list order',
+    from: 'const rank = PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority];', to: 'const rank = 0;' },
+  { id: 'm12-no-default-medium', check: 'c26', desc: 'tasks without a priority (or with a malformed one) are not defaulted to Medium',
+    from: "priority: typeof t.priority === 'string' && Object.hasOwn(PRIORITY_LABELS, t.priority) ? t.priority : 'medium',", to: 'priority: t.priority,' },
+  { id: 'm13-edit-keeps-anchor', check: 'c34', desc: 'editing the due date of a monthly task keeps the old starting day',
+    from: "if (keys.includes('dueDate') || keys.includes('repeat')) delete next.anchorDay;", to: '' },
+  { id: 'm14-edit-overwrites-done', check: 'c36', desc: 'saving an edit overwrites the done state with a stale value',
+    from: 'const next = { ...stored, edited: true };', to: 'const next = { ...stored, done: false, edited: true };' },
+  { id: 'm15-draft-lost', check: 'c33', desc: 'the unsaved edit text is not kept when the list re-renders',
+    from: 'const sync = () => { d[key] = el.value; };', to: 'const sync = () => {};' },
+  { id: 'm16-edit-skips-validation', check: 'c32', desc: 'the edit form saves without validating',
+    from: 'const problem = validateFields(title, d.due, d.repeat);', to: 'const problem = null;' },
+  { id: 'm17-edit-drops-tags', check: 'c30', desc: 'saving an edit loses the tags',
+    from: 'priority: d.priority, tags: parseTags(d.tags) };', to: 'priority: d.priority, tags: [] };' },
+  { id: 'm18-priority-not-saved-on-add', check: 'c25', desc: 'the priority chosen when adding is ignored',
+    from: "priority: Object.hasOwn(PRIORITY_LABELS, chosen) ? chosen : 'medium',", to: "priority: 'medium'," },
+  // Found by the independent security review of ticket #12; each fix has a check and a mutation.
+  { id: 'm19-last-date-spawns-broken-copy', check: 'c37', desc: 'completing a repeating task on the last supported date adds a next occurrence with no date',
+    from: 'if (!nextDate) { s.put({ ...stored, done: true }); return; } // the series ends at the last supported date', to: '' },
+  { id: 'm20-edit-sends-all-fields', check: 'c38', desc: 'an edit sends every field, so untouched fields are overwritten with the form\'s stale copy',
+    from: 'if (JSON.stringify(values[k]) !== JSON.stringify(editing.orig[k])) patch[k] = values[k];', to: 'patch[k] = values[k];' },
+  { id: 'm21-stale-save-runs', check: 'c39', desc: 'Save still acts after the edit has been cancelled',
+    from: 'if (!editing || editing.id !== task.id || editing.saving) return;', to: '' },
+  { id: 'm22-deleted-task-silent', check: 'c40', desc: 'saving an edit to a task deleted elsewhere says nothing',
+    from: "if (outcome === 'gone') showProblem({ message: 'That task no longer exists, so your edit was not saved.' });", to: '' },
+  { id: 'm23-editing-task-hidden', check: 'c41', desc: 'a filter change hides the task being edited',
+    from: ' || (editing && String(editing.id) === String(t.id))', to: '' },
+  { id: 'm24-no-focus-fallback', check: 'c41', desc: 'keyboard focus drops to the page body when the list becomes empty',
+    from: "if (!shown.length) { list.append(emptyRow('No matching tasks.')); focusFallback(keep); return; }", to: "if (!shown.length) { list.append(emptyRow('No matching tasks.')); return; }" },
+  { id: 'm25-untick-forgets-spawn', check: 'c35', desc: 'after un-ticking beside an edited next occurrence, ticking again adds a third copy',
+    from: 's.put({ ...stored, done: false }); // keep spawned and nextId: re-ticking must not add another copy', to: 's.put({ ...stored, done: false, spawned: false, nextId: undefined });' },
+  { id: 'm26-nextid-unvalidated', check: 'c42', desc: 'a malformed nextId in a stored record makes the task impossible to un-tick',
+    from: 'nextId: Number.isInteger(t.nextId) ? t.nextId : undefined, // a non-key here would make s.get throw and abort the un-tick', to: 'nextId: t.nextId,' },
+  { id: 'm27-array-repeat-accepted', check: 'c26', desc: 'a stored repeat of ["monthly"] is accepted as a real repeat',
+    from: "repeat: typeof t.repeat === 'string' && Object.hasOwn(REPEAT_LABELS, t.repeat) ? t.repeat : undefined,", to: 'repeat: Object.hasOwn(REPEAT_LABELS, t.repeat) ? t.repeat : undefined,' },
 ];
 
 // ---- Page-side helpers, injected after every navigation ----
 const HELPERS = `window.T = (() => {
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const $ = (id) => document.getElementById(id);
-  const rows = () => [...document.querySelectorAll('#list li:not(.empty)')];
+  const rows = () => [...document.querySelectorAll('#list li:not(.empty):not(.editing)')]; // task rows; the open edit form is editRow()
   const titleOf = (r) => r.querySelector('.title').textContent;
   const byTitle = (n) => rows().filter((r) => titleOf(r) === n);
-  const stat = (r) => (r.classList.contains('done') ? 'done' : 'open') + ' ' + (r.querySelector('.meta') ? r.querySelector('.meta').textContent : '');
+  // The state plus the due date, repeat and tag text in the order shown. The priority badge is read separately
+  // (prio), so the checks written before priority existed keep asserting exactly what they asserted.
+  const stat = (r) => (r.classList.contains('done') ? 'done' : 'open') + ' ' + [...r.querySelectorAll('.meta .due, .meta .repeat, .meta .chip')].map((e) => e.textContent).join('');
+  const prio = (r) => r.querySelector('.prio').textContent;
+  const editRow = () => document.querySelector('#list li.editing');
+  const ctl = (name) => document.querySelector('#list li.editing [data-ctl="' + name + '"]');
+  const setField = (name, v) => { const el = ctl(name); el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); };
+  const rowFor = (title) => byTitle(title)[0];
+  const idOf = (title) => Number(rowFor(title).dataset.id);
+  const get = (id) => raw((s) => s.get(id));
   const pad = (n) => String(n).padStart(2, '0');
   const ds = (off) => { const d = new Date(); d.setDate(d.getDate() + off); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
   const add = async (title, due, repeat, tags) => { $('title').value = title; $('due').value = due || ''; $('repeat').value = repeat || ''; $('tags').value = tags || ''; $('add').requestSubmit(); await wait(250); };
@@ -74,7 +126,7 @@ const HELPERS = `window.T = (() => {
   const lum = (c) => { const [r, g, b] = c.match(/[\\d.]+/g).slice(0, 3).map(Number).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
   const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
   const bgOf = (el) => { while (el) { const c = getComputedStyle(el).backgroundColor; if (!/, 0\\)$|transparent/.test(c)) return c; el = el.parentElement; } return 'rgb(255, 255, 255)'; };
-  return { wait, $, rows, titleOf, byTitle, stat, ds, add, raw, click, ratio, bgOf };
+  return { wait, $, rows, titleOf, byTitle, stat, prio, editRow, ctl, setField, rowFor, idOf, get, ds, add, raw, click, ratio, bgOf };
 })(); true`;
 
 async function main() {
@@ -137,7 +189,7 @@ async function main() {
     await waitFor(ready); await ev(HELPERS);
   };
   const reload = async () => { await send('Page.reload'); await waitFor(ready); await ev(HELPERS); };
-  const KEYS = { Enter: { key: 'Enter', code: 'Enter', vk: 13, text: '\r' }, Space: { key: ' ', code: 'Space', vk: 32, text: ' ' }, Tab: { key: 'Tab', code: 'Tab', vk: 9 } };
+  const KEYS = { Enter: { key: 'Enter', code: 'Enter', vk: 13, text: '\r' }, Space: { key: ' ', code: 'Space', vk: 32, text: ' ' }, Tab: { key: 'Tab', code: 'Tab', vk: 9 }, Escape: { key: 'Escape', code: 'Escape', vk: 27 } };
   const press = async (name) => {
     const k = KEYS[name];
     await send('Input.dispatchKeyEvent', { type: k.text ? 'keyDown' : 'rawKeyDown', key: k.key, code: k.code, windowsVirtualKeyCode: k.vk, text: k.text });
@@ -287,8 +339,14 @@ async function main() {
       await fresh();
       const r = await ev(T(`await T.add('Alpha', T.ds(1), '', 'a'); await T.add('Beta');
         const unnamed = [...document.querySelectorAll('input, select, button')].filter((e) => !(e.getAttribute('aria-label') || e.textContent.trim() || (e.labels && e.labels.length))).map((e) => e.id || e.outerHTML.slice(0, 40));
-        return { unnamed, boxes: T.rows().map((x) => x.querySelector('input').getAttribute('aria-label')), dels: T.rows().map((x) => x.querySelector('button.del').getAttribute('aria-label')) }`));
-      eq(r, { unnamed: [], boxes: ['Alpha', 'Beta'], dels: ['Delete Alpha', 'Delete Beta'] }, 'accessible names');
+        const named = (e) => !(e.getAttribute('aria-label') || e.textContent.trim() || (e.labels && e.labels.length));
+        const out = { unnamed, boxes: T.rows().map((x) => x.querySelector('input').getAttribute('aria-label')), dels: T.rows().map((x) => x.querySelector('button.del').getAttribute('aria-label')),
+          edits: T.rows().map((x) => x.querySelector('button.edit').getAttribute('aria-label')) };
+        await T.click(T.rowFor('Alpha').querySelector('button.edit'));   // the edit form's controls need names too
+        out.editUnnamed = [...document.querySelectorAll('#list li.editing input, #list li.editing select, #list li.editing button')].filter(named).map((e) => e.dataset.ctl);
+        out.editFormName = T.editRow().querySelector('form').getAttribute('aria-label');
+        return out`));
+      eq(r, { unnamed: [], boxes: ['Alpha', 'Beta'], dels: ['Delete Alpha', 'Delete Beta'], edits: ['Edit Alpha', 'Edit Beta'], editUnnamed: [], editFormName: 'Edit Alpha' }, 'accessible names');
     } },
     { id: 'c20', name: 'Keyboard focus stays on the same row after Space toggles a task, and moves to a neighbour after Delete', run: async () => {
       await fresh();
@@ -296,7 +354,11 @@ async function main() {
       await tabTo('#list li input'); await press('Space');
       const afterSpace = await ev(`({ label: document.activeElement.getAttribute('aria-label'), done: window.T.byTitle('First')[0].classList.contains('done') })`);
       eq(afterSpace, { label: 'First', done: true }, 'after Space');
-      await press('Tab'); await press('Enter'); // Tab to this row's Delete button, activate it
+      // Each row now has an Edit button before Delete (updated for the new control, not weakened): the first Tab
+      // must land on this row's Edit button, the second on its Delete button, and Enter activates Delete.
+      await press('Tab');
+      eq(await ev(`document.activeElement.getAttribute('aria-label')`), 'Edit First', 'first Tab after the checkbox');
+      await press('Tab'); await press('Enter');
       const afterDelete = await ev(`({ inList: document.getElementById('list').contains(document.activeElement), rows: window.T.rows().length })`);
       eq(afterDelete, { inList: true, rows: 2 }, 'after Delete');
     } },
@@ -308,6 +370,11 @@ async function main() {
           const de = document.documentElement; const clipped = [...document.querySelectorAll('input, select, button')].filter((e) => e.getBoundingClientRect().right > innerWidth + 1).map((e) => e.id || e.textContent);
           return { sideways: de.scrollWidth > de.clientWidth, clipped, vw: innerWidth }`));
         eq(r, { sideways: false, clipped: [], vw: 375 }, 'phone layout');
+        // And with the edit form open (the widest row the app can show).
+        const edit = await ev(T(`await T.click(T.rows()[0].querySelector('button.edit'));
+          const de = document.documentElement; const clipped = [...document.querySelectorAll('#list input, #list select, #list button')].filter((e) => e.getBoundingClientRect().right > innerWidth + 1).map((e) => e.dataset.ctl);
+          return { sideways: de.scrollWidth > de.clientWidth, clipped, editing: !!T.editRow() }`));
+        eq(edit, { sideways: false, clipped: [], editing: true }, 'phone layout while editing');
       } finally { await send('Emulation.setDeviceMetricsOverride', { width: 760, height: 800, deviceScaleFactor: 1, mobile: false }); }
     } },
     { id: 'c22', name: 'A failed save shows a message, keeps what was typed, and the message clears after the next success', run: async () => {
@@ -323,20 +390,217 @@ async function main() {
     } },
     { id: 'c23', name: 'Text and controls meet WCAG AA contrast (4.5:1) in both light and dark colour schemes', run: async () => {
       const probe = T(`await T.add('Overdue recurring', T.ds(-2), 'daily', 'work'); await T.add('Future', T.ds(5)); await T.add('Plain task'); await T.click(T.byTitle('Plain task')[0].querySelector('input'));
+        T.$('priority').value = 'high'; await T.add('High one'); T.$('priority').value = 'low'; await T.add('Low one');
         T.$('title').value = 'x'; T.$('repeat').value = 'daily'; T.$('add').requestSubmit(); await T.wait(200);
         const probes = { 'task title': 'li:not(.done) .title', 'completed task title': 'li.done .title', 'due date': 'li:not(.overdue) .meta .due', 'overdue date': '.overdue .due', 'repeat badge': '.repeat', 'tag chip': '.chip',
+          'High badge': '.prio-high', 'Medium badge': '.prio-medium', 'Low badge': '.prio-low', 'Edit button': 'li button.edit',
           'delete button': 'li button.del', 'Add button': '#add button', 'selected filter': '.segmented [aria-pressed=true]', 'other filter': '.segmented [aria-pressed=false]', 'error message': '#status.error' };
         const bad = []; const seen = {};
-        for (const [name, sel] of Object.entries(probes)) {
+        const measure = (probes) => { for (const [name, sel] of Object.entries(probes)) {
           const el = document.querySelector(sel); if (!el) { bad.push(name + ': element not found'); continue; }
           const cs = getComputedStyle(el); const r = T.ratio(cs.color, T.bgOf(el)); seen[name] = Math.round(r * 100) / 100;
           if (r < 4.5) bad.push(name + ' ' + seen[name]);
-        }
+        } };
+        measure(probes);
+        await T.click(T.rowFor('Future').querySelector('button.edit'));   // and the edit form's own controls
+        T.setField('f-title', ''); T.ctl('save').click(); await T.wait(300);   // shows the edit form's error line
+        measure({ 'edit field text': '#list li.editing [data-ctl=f-title]', 'Save button': '#list li.editing button.save', 'Cancel button': '#list li.editing button.cancel', 'edit form error': '#list li.editing .formerror' });
         return { bad, seen }`);
       const out = {};
       for (const s of ['light', 'dark']) { await scheme(s); try { await fresh(); out[s] = await ev(probe); } finally { await scheme('light'); } }
       eq({ light: out.light.bad, dark: out.dark.bad }, { light: [], dark: [] }, 'contrast failures (ratio shown)');
       return out;
+    } },
+    // ---- Ticket #12: priority, priority filter, edit. (c24, the network check, stays last so it sees every request.) ----
+    { id: 'c25', name: 'New tasks default to Medium, the Priority dropdown returns to Medium after adding, and each task shows its priority', run: async () => {
+      await fresh();
+      const r = await ev(T(`const sel = T.$('priority'); const before = sel.value;
+        sel.value = 'high'; await T.add('Hi'); const afterAdd = sel.value; await T.add('Def');
+        return { before, afterAdd, options: [...sel.options].map((o) => o.value), badges: T.rows().map((x) => [T.titleOf(x), T.prio(x)]).sort() }`));
+      eq(r, { before: 'medium', afterAdd: 'medium', options: ['high', 'medium', 'low'], badges: [['Def', 'Medium'], ['Hi', 'High']] }, 'priority on add');
+    } },
+    { id: 'c26', name: 'Tasks saved without a priority, and malformed priorities or repeats (including arrays), count as Medium and as not repeating', run: async () => {
+      await fresh();
+      const r = await ev(T(`for (const [i, p] of [[1, undefined], [2, '__proto__'], [3, 5], [4, 'HIGH'], [5, ['high']]]) await T.raw((s) => s.add({ title: 'T' + i, done: false, created: i, priority: p }));
+        await T.raw((s) => s.add({ title: 'RA', done: false, created: 9, dueDate: T.ds(1), repeat: ['monthly'] }));
+        await window.render();
+        return { prios: T.rows().filter((x) => T.titleOf(x) !== 'RA').map((x) => T.titleOf(x) + ':' + T.prio(x)), raRepeatBadges: T.rowFor('RA').querySelectorAll('.repeat').length }`));
+      eq(r, { prios: ['T1:Medium', 'T2:Medium', 'T3:Medium', 'T4:Medium', 'T5:Medium'], raRepeatBadges: 0 }, 'default priority and repeat');
+    } },
+    { id: 'c27', name: 'The list is ordered by due date, then priority (High first), with undated tasks last ordered by priority', run: async () => {
+      await fresh();
+      const r = await ev(T(`const mk = (title, due, priority, created) => ({ title, done: false, created, priority, ...(due ? { dueDate: T.ds(due) } : {}) });
+        for (const t of [mk('A', 1, 'low', 1), mk('B', 1, 'high', 2), mk('C', 1, 'medium', 3), mk('D', 2, 'high', 4), mk('U1', 0, 'low', 5), mk('U2', 0, 'high', 6), mk('U3', 0, 'medium', 7)]) await T.raw((s) => s.add(t));
+        await window.render(); return T.rows().map(T.titleOf)`));
+      eq(r, ['B', 'C', 'A', 'D', 'U2', 'U3', 'U1'], 'order');
+    } },
+    { id: 'c28', name: 'The priority filter works alone and together with the status and tag filters, with the empty state', run: async () => {
+      await fresh();
+      const r = await ev(T(`const addP = async (title, p, tags) => { T.$('priority').value = p; await T.add(title, '', '', tags); };
+        await addP('H1', 'high', 'work'); await addP('H2', 'high', 'home'); await addP('M1', 'medium', 'work'); await addP('L1', 'low', 'home');
+        await T.click(T.rowFor('H2').querySelector('input'));
+        const names = () => T.rows().map(T.titleOf).sort();
+        const setSel = async (id, v) => { T.$(id).value = v; T.$(id).dispatchEvent(new Event('change')); await T.wait(300); };
+        const status = async (s) => { await T.click(document.querySelector('[data-status=' + s + ']')); };
+        const out = { options: [...T.$('priorityFilter').options].map((o) => o.value), all: names() };
+        await setSel('priorityFilter', 'high'); out.high = names();
+        await setSel('priorityFilter', 'medium'); out.medium = names();
+        await setSel('priorityFilter', 'low'); out.low = names();
+        await setSel('priorityFilter', 'high'); await status('completed'); out.highDone = names();
+        await status('all'); await setSel('tagFilter', 'home'); out.highHome = names();
+        await setSel('priorityFilter', 'low'); await status('completed'); out.lowDone = document.querySelector('#list li.empty') && document.querySelector('#list li.empty').textContent;
+        return out`));
+      eq(r, { options: ['', 'high', 'medium', 'low'], all: ['H1', 'H2', 'L1', 'M1'], high: ['H1', 'H2'], medium: ['M1'], low: ['L1'], highDone: ['H2'], highHome: ['H2'], lowDone: 'No matching tasks.' }, 'priority filter');
+    } },
+    { id: 'c29', name: 'The next occurrence of a recurring task inherits its priority', run: async () => {
+      await fresh();
+      const r = await ev(T(`T.$('priority').value = 'high'; await T.add('Rec', T.ds(-3), 'daily'); await T.click(T.rowFor('Rec').querySelector('input'));
+        return T.byTitle('Rec').map(T.prio)`));
+      eq(r, ['High', 'High'], 'priority on the completed task and its next occurrence');
+    } },
+    { id: 'c30', name: 'Editing every field (title, due date, repeat, priority, tags) saves, closes the form, restores focus, and persists across a reload', run: async () => {
+      await fresh();
+      const ds3 = await ev(`T.ds(3)`), ds10 = await ev(`T.ds(10)`);
+      await ev(T(`T.$('priority').value = 'low'; await T.add('Orig', T.ds(3), 'weekly', 'a'); await T.click(T.rowFor('Orig').querySelector('button.edit'));`));
+      const opened = await ev(T(`return { form: !!T.editRow(), focus: document.activeElement.dataset.ctl, values: ['f-title', 'f-due', 'f-repeat', 'f-priority', 'f-tags'].map((c) => T.ctl(c).value) }`));
+      eq(opened, { form: true, focus: 'f-title', values: ['Orig', ds3, 'weekly', 'low', 'a'] }, 'edit form opens filled in');
+      const saved = await ev(T(`T.setField('f-title', 'Changed'); T.setField('f-due', T.ds(10)); T.setField('f-repeat', 'daily'); T.setField('f-priority', 'high'); T.setField('f-tags', 'X, y, x');
+        T.ctl('save').click(); await T.wait(500);
+        const r = T.rowFor('Changed');
+        return { editing: !!T.editRow(), old: T.byTitle('Orig').length, stat: T.stat(r), prio: T.prio(r), focus: document.activeElement.dataset.ctl + ':' + document.activeElement.getAttribute('aria-label') }`));
+      const want = { editing: false, old: 0, stat: 'open Due ' + ds10 + '↻ Dailyxy', prio: 'High', focus: 'edit:Edit Changed' };
+      eq(saved, want, 'after Save');
+      await reload();
+      eq(await ev(T(`const r = T.rowFor('Changed'); return { stat: T.stat(r), prio: T.prio(r), rows: T.rows().length }`)), { stat: want.stat, prio: 'High', rows: 1 }, 'after reload');
+    } },
+    { id: 'c31', name: 'Keyboard editing: Enter saves, Escape cancels, and focus returns to the Edit button (real key events)', run: async () => {
+      await fresh(); await ev(T(`await T.add('Key'); document.getElementById('title').focus()`));
+      await tabTo('#list li button.edit'); await press('Enter');
+      eq(await ev(`document.activeElement.dataset.ctl`), 'f-title', 'focus on the title field after Enter on Edit');
+      await typeText(' more'); await press('Enter');
+      const afterSave = await ev(T(`return { rows: T.rows().map(T.titleOf), editing: !!T.editRow(), focus: document.activeElement.dataset.ctl }`));
+      assert(afterSave.rows.length === 1 && afterSave.rows[0].includes('more') && afterSave.rows[0].includes('Key') && !afterSave.editing && afterSave.focus === 'edit', 'Enter did not save the edit and restore focus: ' + JSON.stringify(afterSave));
+      const title1 = afterSave.rows[0];
+      await press('Enter'); await typeText('ZZZ'); await press('Escape');
+      eq(await ev(T(`return { rows: T.rows().map(T.titleOf), editing: !!T.editRow(), focus: document.activeElement.dataset.ctl }`)), { rows: [title1], editing: false, focus: 'edit' }, 'after Escape');
+    } },
+    { id: 'c32', name: 'Edit validation: an empty title, a repeat without a due date and an impossible date are rejected, nothing is saved and the draft stays', run: async () => {
+      await fresh();
+      const r = await ev(T(`await T.add('V'); const id = T.idOf('V'); await T.click(T.rowFor('V').querySelector('button.edit'));
+        // Problems are shown inside the edit form (next to Save), where the user is looking, not in the page-level status line.
+        const msg = () => T.editRow().querySelector('.formerror').textContent;
+        const out = {}; const save = async () => { T.ctl('save').click(); await T.wait(300); };
+        T.setField('f-title', '   '); await save(); out.empty = [msg(), document.activeElement.dataset.ctl];
+        out.visible = T.editRow().querySelector('.formerror').offsetHeight > 0;
+        T.setField('f-title', 'V2'); T.setField('f-repeat', 'daily'); await save(); out.noDue = [msg(), document.activeElement.dataset.ctl];
+        editing.draft.due = '2026-02-30'; await save(); out.badDue = msg();
+        out.statusLine = T.$('status').textContent;
+        const stored = await T.get(id); out.stored = stored.title + '|' + (stored.repeat || 'none') + '|' + (stored.edited === true);
+        out.draftKept = T.ctl('f-title').value; out.stillEditing = !!T.editRow();
+        T.ctl('cancel').click(); await T.wait(300); out.afterCancel = T.rows().map(T.titleOf);
+        return out`));
+      eq(r, { empty: ['Enter a title.', 'f-title'], visible: true, noDue: ['Choose a due date for a repeating task.', 'f-due'], badDue: 'Enter a due date between 1970 and 9999.', statusLine: '',
+        stored: 'V|none|false', draftKept: 'V2', stillEditing: true, afterCancel: ['V'] }, 'edit validation');
+    } },
+    { id: 'c33', name: 'An edit in progress keeps its unsaved text when the list re-renders, and other Edit buttons are disabled meanwhile', run: async () => {
+      await fresh();
+      const r = await ev(T(`await T.add('A'); await T.add('B'); await T.click(T.rowFor('A').querySelector('button.edit')); T.setField('f-title', 'Draft text');
+        await T.click(T.rowFor('B').querySelector('input'));
+        return { draft: T.ctl('f-title').value, bDone: T.rowFor('B').classList.contains('done'), otherEditDisabled: T.rowFor('B').querySelector('button.edit').disabled }`));
+      eq(r, { draft: 'Draft text', bDone: true, otherEditDisabled: true }, 'draft after a re-render');
+    } },
+    { id: 'c34', name: 'Changing the due date of a monthly task starts a new series: the next occurrence uses the new day of month', run: async () => {
+      await fresh();
+      const Y = new Date().getFullYear() + 1;
+      const r = await ev(T(`await T.add('M', '${Y}-01-31', 'monthly'); await T.click(T.rowFor('M').querySelector('input'));
+        const open = T.byTitle('M').find((x) => !x.classList.contains('done')); await T.click(open.querySelector('button.edit'));
+        T.setField('f-due', '${Y}-03-10'); T.ctl('save').click(); await T.wait(500);
+        await T.click(T.byTitle('M').find((x) => !x.classList.contains('done')).querySelector('input'));
+        return T.byTitle('M').map((x) => x.querySelector('.due').textContent)`));
+      eq(r, [`Due ${Y}-01-31`, `Due ${Y}-03-10`, `Due ${Y}-04-10`], 'monthly dates after re-anchoring');
+    } },
+    { id: 'c35', name: 'Un-ticking never deletes a next occurrence the user has edited', run: async () => {
+      await fresh();
+      const r = await ev(T(`await T.add('R', T.ds(-3), 'daily'); await T.click(T.rowFor('R').querySelector('input'));
+        const next = T.byTitle('R').find((x) => !x.classList.contains('done')); await T.click(next.querySelector('button.edit'));
+        T.setField('f-priority', 'high'); T.ctl('save').click(); await T.wait(500);
+        const state = () => T.byTitle('R').map((x) => (x.classList.contains('done') ? 'done ' : 'open ') + T.prio(x)).sort();
+        await T.click(T.byTitle('R').find((x) => x.classList.contains('done')).querySelector('input'));
+        const afterUntick = state();
+        await T.click(T.byTitle('R').find((x) => T.prio(x) === 'Medium').querySelector('input'));   // tick the original again
+        return { afterUntick, afterRetick: state() }`));
+      // The edited next occurrence is kept, and re-ticking the original must not add a third copy of the series.
+      eq(r, { afterUntick: ['open High', 'open Medium'], afterRetick: ['done Medium', 'open High'] }, 'rows after un-tick and re-tick with an edited next occurrence');
+    } },
+    { id: 'c36', name: 'Saving an edit does not overwrite a change made elsewhere meanwhile (no stale save)', run: async () => {
+      await fresh();
+      const r = await ev(T(`await T.add('S'); const id = T.idOf('S'); await T.click(T.rowFor('S').querySelector('button.edit')); T.setField('f-title', 'S edited');
+        const rec = await T.get(id); rec.done = true; await T.raw((s) => s.put(rec));   // another tab ticks it meanwhile
+        T.ctl('save').click(); await T.wait(500);
+        const stored = await T.get(id); return { title: stored.title, done: stored.done, edited: stored.edited }`));
+      eq(r, { title: 'S edited', done: true, edited: true }, 'stored record after a stale save');
+    } },
+    // ---- Found by the independent security review of ticket #12 ----
+    { id: 'c37', name: 'Completing a repeating task on the last supported date (9999-12-31) ends the series without freezing the page', run: async () => {
+      await fresh();
+      const r = await ev(T(`const out = { rows: {} }; const t0 = performance.now();
+        for (const [title, due, rep] of [['Dd', '9999-12-31', 'daily'], ['Ww', '9999-12-28', 'weekly'], ['Mm', '9999-12-15', 'monthly']]) {
+          await T.add(title, due, rep); await T.click(T.rowFor(title).querySelector('input'));
+          out.rows[title] = T.byTitle(title).map((x) => (x.classList.contains('done') ? 'done' : 'open')); }
+        out.ms = Math.round(performance.now() - t0); out.status = T.$('status').textContent; return out`));
+      assert(r.ms < 4000, 'took ' + r.ms + ' ms');
+      eq({ rows: r.rows, status: r.status }, { rows: { Dd: ['done'], Ww: ['done'], Mm: ['done'] }, status: '' }, 'series at the last date');
+    } },
+    { id: 'c38', name: 'Saving an edit changes only the fields the user changed: another tab\'s change to a different field survives', run: async () => {
+      await fresh();
+      const r = await ev(T(`await T.add('P', '', '', 'a'); const id = T.idOf('P'); await T.click(T.rowFor('P').querySelector('button.edit'));
+        T.setField('f-title', 'P2');                                       // the user changes only the title
+        const rec = await T.get(id); rec.priority = 'high'; rec.tags = ['x']; await T.raw((s) => s.put(rec));   // another tab changes priority and tags
+        T.ctl('save').click(); await T.wait(500);
+        const s = await T.get(id); return { title: s.title, priority: s.priority, tags: s.tags, edited: s.edited }`));
+      eq(r, { title: 'P2', priority: 'high', tags: ['x'], edited: true }, 'stored record');
+    } },
+    { id: 'c39', name: 'Save and Cancel do nothing once the edit they belong to is closed: no error, nothing saved', run: async () => {
+      await fresh();
+      const r = await ev(T(`await T.add('G'); const id = T.idOf('G'); const task = (await allTasks())[0];
+        await T.click(T.rowFor('G').querySelector('button.edit')); T.setField('f-title', 'G2');
+        cancelEdit(task);                                                    // Escape
+        let threw = false; try { await commitEdit(task); } catch (e) { threw = true; }   // Enter arriving before the form was replaced
+        await T.wait(400);
+        return { threw, closed: editing === null, rows: T.rows().map(T.titleOf), stored: (await T.get(id)).title }`));
+      eq(r, { threw: false, closed: true, rows: ['G'], stored: 'G' }, 'late Save after Cancel');
+    } },
+    { id: 'c40', name: 'Saving an edit to a task that was deleted elsewhere says so instead of looking successful', run: async () => {
+      await fresh();
+      const r = await ev(T(`await T.add('D'); const id = T.idOf('D'); await T.click(T.rowFor('D').querySelector('button.edit')); T.setField('f-title', 'D2');
+        await T.raw((s) => s.delete(id)); T.ctl('save').click(); await T.wait(500);
+        return { msg: T.$('status').textContent, closed: editing === null, rows: T.rows().length }`));
+      eq(r, { msg: 'That task no longer exists, so your edit was not saved.', closed: true, rows: 0 }, 'save after the task was deleted');
+    } },
+    { id: 'c41', name: 'The task being edited stays visible when a filter would hide it, and keyboard focus never falls to the page body when the list empties', run: async () => {
+      await fresh();
+      const r = await ev(T(`T.$('priority').value = 'high'; await T.add('H'); T.$('priority').value = 'low'; await T.add('L');
+        const setSel = async (id, v) => { T.$(id).value = v; T.$(id).dispatchEvent(new Event('change')); await T.wait(300); };
+        await T.click(T.rowFor('H').querySelector('button.edit'));
+        await setSel('priorityFilter', 'low');                               // H (high) no longer matches the filter
+        const out = { formStill: !!T.editRow(), rows: T.rows().map(T.titleOf) };
+        T.ctl('cancel').click(); await T.wait(300); out.afterCancel = T.rows().map(T.titleOf);   // now only L matches
+        await T.click(T.rowFor('L').querySelector('button.edit')); T.setField('f-priority', 'high'); T.ctl('save').click(); await T.wait(500);
+        out.empty = document.querySelector('#list li.empty') && document.querySelector('#list li.empty').textContent;   // nothing matches any more
+        out.focusOnFilter = document.activeElement.tagName === 'BUTTON' && document.activeElement.hasAttribute('data-status');
+        return out`));
+      eq(r, { formStill: true, rows: ['L'], afterCancel: ['L'], empty: 'No matching tasks.', focusOnFilter: true }, 'edit under a filter');
+    } },
+    { id: 'c42', name: 'Records with a malformed nextId or anchorDay can still be ticked and un-ticked without errors', run: async () => {
+      await fresh();
+      const Y = new Date().getFullYear() + 1; const febLast = new Date(Y, 2, 0).getDate();
+      const r = await ev(T(`await T.raw((s) => s.add({ title: 'N1', done: true, created: 1, repeat: 'daily', dueDate: T.ds(-1), spawned: true, nextId: {} }));
+        await T.raw((s) => s.add({ title: 'N2', done: false, created: 2, repeat: 'monthly', dueDate: '${Y}-01-31', anchorDay: 'x' }));
+        await window.render();
+        await T.click(T.rowFor('N1').querySelector('input'));              // un-tick: must not abort
+        await T.click(T.byTitle('N2')[0].querySelector('input'));          // tick: must spawn a valid date
+        return { n1: T.byTitle('N1').map((x) => (x.classList.contains('done') ? 'done' : 'open')), n2: T.byTitle('N2').map((x) => x.querySelector('.due').textContent), status: T.$('status').textContent }`));
+      eq(r, { n1: ['open'], n2: [`Due ${Y}-01-31`, `Due ${Y}-02-${febLast}`], status: '' }, 'malformed nextId and anchorDay');
     } },
     { id: 'c24', name: 'The only network requests are for the local page itself', run: async () => {
       const foreign = network.filter((u) => !u.startsWith(origin + '/') && !u.startsWith('about:') && !u.startsWith('data:'));
