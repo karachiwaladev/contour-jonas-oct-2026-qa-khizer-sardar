@@ -1,0 +1,145 @@
+﻿Skills loaded this session
+
+  skill                                                                 source                        context  7d tokens   uses  last used
+  blueprint                                                             userSettings                     ~100          -     0×  never
+  wordpress-router                                                      userSettings                     ~100          -     0×  never
+  wp-abilities-api                                                      userSettings                      ~90          -     0×  never
+  wp-abilities-audit                                                    userSettings                     ~100          -     0×  never
+  wp-abilities-verify                                                   userSettings                     ~100          -     0×  never
+  wp-block-development                                                  userSettings                     ~120          -     0×  never
+  wp-block-themes                                                       userSettings                      ~80          -     0×  never
+  wp-interactivity-api                                                  userSettings                      ~90          -     0×  never
+  wp-patterns                                                           userSettings                     ~120          -     0×  never
+  wp-performance                                                        userSettings                     ~100          -     0×  never
+  wp-phpstan                                                            userSettings                      ~70          -     0×  never
+  wp-playground                                                         userSettings                     ~110          -     0×  never
+  wp-plugin-development                                                 userSettings                      ~80          -     0×  never
+  wp-plugin-directory-guidelines                                        userSettings                     ~150          -     0×  never
+  wp-project-triage                                                     userSettings                      ~80          -     0×  never
+  wp-rest-api                                                           userSettings                     ~110          -     0×  never
+  wp-wpcli-and-ops                                                      userSettings                      ~80          -     0×  never
+  wpds                                                                  userSettings                      ~40          -     0×  never
+  factory-loop                                                          projectSettings                  ~180          -     0×  never
+  security-audit                                                        projectSettings                  ~130          -     0×  never
+  web3d-integration-patterns:help                                       web3d-integration-patterns          -          -     0×  never
+  web3d-integration-patterns:setup                                      web3d-integration-patterns          -          -     0×  never
+  threejs-webgl:setup_scene                                             threejs-webgl                       -          -     0×  never
+  substance-3d-texturing:batch_export                                   substance-3d-texturing              -          -     0×  never
+  substance-3d-texturing:generate_export_preset                         substance-3d-texturing              -          -     0×  never
+  substance-3d-texturing:web_optimizer                                  substance-3d-texturing              -          -     0×  never
+  pixijs-2d:particle_builder                                            pixijs-2d                           -          -     0×  never
+  pixijs-2d:sprite_generator                                            pixijs-2d                           -          -     0×  never
+  spline-interactive:component_builder                                  spline-interactive                  -          -     0×  never
+  spline-interactive:project_generator                                  spline-interactive                  -          -     0×  never
+  scroll-reveal-libraries:aos_generator                                 scroll-reveal-libraries             -          -     0×  never
+  scroll-reveal-libraries:config_builder                                scroll-reveal-libraries             -          -     0×  never
+  animated-component-libraries:component_importer                       animated-component-libraries        -          -     0×  never
+  animated-component-libraries:props_generator                          animated-component-libraries        -          -     0×  never
+  animejs:animation_generator                                           animejs                             -          -     0×  never
+  animejs:timeline_builder                                              animejs                             -          -     0×  never
+  animation-components:animated-component-libraries-component_importer  animation-components                -          -     0×  never
+  animation-components:animated-component-libraries-props_generator     animation-components                -          -     0×  never
+  animation-components:animejs-animation_generator                      animation-components                -          -     0×  never
+  animation-components:animejs-timeline_builder                         animation-components                -          -     0×  never
+  animation-components:lottie-animations-generate_lottie_component      animation-components                -          -     0×  never
+  animation-components:lottie-animations-optimize_lottie                animation-components                -          -     0×  never
+  animation-components:react-spring-physics-physics_calculator          animation-components                -          -     0×  never
+  animation-components:react-spring-physics-spring_generator            animation-components                -          -     0×  never
+  animation-components:scroll-reveal-libraries-aos_generator            animation-components                -          -     0×  never
+  animation-components:scroll-reveal-libraries-config_builder           animation-components                -          -     0×  never
+  barba-js:project_setup                                                barba-js                            -          -     0×  never
+  barba-js:transition_generator                                         barba-js                            -          -     0×  never
+  lottie-animations:generate_lottie_component                           lottie-animations                   -          -     0×  never
+  lottie-animations:optimize_lottie                                     lottie-animations                   -          -     0×  never
+  gsap-scrolltrigger:generate_animation                                 gsap-scrolltrigger                  -          -     0×  never
+  gsap-scrolltrigger:timeline_builder                                   gsap-scrolltrigger                  -          -     0×  never
+  core-3d-animation:babylonjs-engine-mesh_builder                       core-3d-animation                   -          -     0×  never
+  core-3d-animation:babylonjs-engine-scene_generator                    core-3d-animation                   -          -     0×  never
+  core-3d-animation:gsap-scrolltrigger-generate_animation               core-3d-animation                   -          -     0×  never
+  core-3d-animation:gsap-scrolltrigger-timeline_builder                 core-3d-animation                   -          -     0×  never
+  core-3d-animation:motion-framer-animation_generator                   core-3d-animation                   -          -     0×  never
+  core-3d-animation:motion-framer-variant_builder                       core-3d-animation                   -          -     0×  never
+  core-3d-animation:react-three-fiber-component_generator               core-3d-animation                   -          -     0×  never
+  core-3d-animation:react-three-fiber-scene_setup                       core-3d-animation                   -          -     0×  never
+  core-3d-animation:threejs-webgl-setup_scene                           core-3d-animation                   -          -     0×  never
+  extended-3d-scroll:aframe-webxr-component_builder                     extended-3d-scroll                  -          -     0×  never
+  extended-3d-scroll:aframe-webxr-scene_generator                       extended-3d-scroll                  -          -     0×  never
+  extended-3d-scroll:barba-js-project_setup                             extended-3d-scroll                  -          -     0×  never
+  extended-3d-scroll:barba-js-transition_generator                      extended-3d-scroll                  -          -     0×  never
+  extended-3d-scroll:lightweight-3d-effects-generate_zdog               extended-3d-scroll                  -          -     0×  never
+  extended-3d-scroll:lightweight-3d-effects-setup_vanta                 extended-3d-scroll                  -          -     0×  never
+  extended-3d-scroll:locomotive-scroll-generate_config                  extended-3d-scroll                  -          -     0×  never
+  extended-3d-scroll:locomotive-scroll-integration_helper               extended-3d-scroll                  -          -     0×  never
+  extended-3d-scroll:pixijs-2d-particle_builder                         extended-3d-scroll                  -          -     0×  never
+  extended-3d-scroll:pixijs-2d-sprite_generator                         extended-3d-scroll                  -          -     0×  never
+  extended-3d-scroll:playcanvas-engine-component_builder                extended-3d-scroll                  -          -     0×  never
+  extended-3d-scroll:playcanvas-engine-project_generator                extended-3d-scroll                  -          -     0×  never
+  meta-skills:modern-web-design-design_audit                            meta-skills                         -          -     0×  never
+  meta-skills:modern-web-design-pattern_generator                       meta-skills                         -          -     0×  never
+  meta-skills:web3d-integration-patterns-help                           meta-skills                         -          -     0×  never
+  meta-skills:web3d-integration-patterns-setup                          meta-skills                         -          -     0×  never
+  motion-framer:animation_generator                                     motion-framer                       -          -     0×  never
+  motion-framer:variant_builder                                         motion-framer                       -          -     0×  never
+  modern-web-design:design_audit                                        modern-web-design                   -          -     0×  never
+  modern-web-design:pattern_generator                                   modern-web-design                   -          -     0×  never
+  react-spring-physics:physics_calculator                               react-spring-physics                -          -     0×  never
+  react-spring-physics:spring_generator                                 react-spring-physics                -          -     0×  never
+  react-three-fiber:component_generator                                 react-three-fiber                   -          -     0×  never
+  react-three-fiber:scene_setup                                         react-three-fiber                   -          -     0×  never
+  rive-interactive:component_generator                                  rive-interactive                    -          -     0×  never
+  rive-interactive:viewmodel_builder                                    rive-interactive                    -          -     0×  never
+  lightweight-3d-effects:generate_zdog                                  lightweight-3d-effects              -          -     0×  never
+  lightweight-3d-effects:setup_vanta                                    lightweight-3d-effects              -          -     0×  never
+  locomotive-scroll:generate_config                                     locomotive-scroll                   -          -     0×  never
+  locomotive-scroll:integration_helper                                  locomotive-scroll                   -          -     0×  never
+  ui-ux-pro-max:banner-design                                           ui-ux-pro-max                    ~160          -     0×  never
+  ui-ux-pro-max:brand                                                   ui-ux-pro-max                     ~70          -     0×  never
+  ui-ux-pro-max:design                                                  ui-ux-pro-max                    ~220          -     0×  never
+  ui-ux-pro-max:design-system                                           ui-ux-pro-max                    ~100          -     0×  never
+  ui-ux-pro-max:slides                                                  ui-ux-pro-max                     ~60          -     0×  never
+  ui-ux-pro-max:ui-styling                                              ui-ux-pro-max                    ~170          -     0×  never
+  web3d-integration-patterns:web3d-integration-patterns                 web3d-integration-patterns       ~180          -     0×  never
+  threejs-webgl:threejs-webgl                                           threejs-webgl                    ~130          -     0×  never
+  substance-3d-texturing:substance-3d-texturing                         substance-3d-texturing           ~200          -     0×  never
+  pixijs-2d:pixijs-2d                                                   pixijs-2d                        ~170          -     0×  never
+  spline-interactive:spline-interactive                                 spline-interactive               ~170          -     0×  never
+  scroll-reveal-libraries:scroll-reveal-libraries                       scroll-reveal-libraries          ~180          -     0×  never
+  animated-component-libraries:animated-component-libraries             animated-component-libraries     ~210          -     0×  never
+  animejs:animejs                                                       animejs                          ~150          -     0×  never
+  animation-components:animated-component-libraries                     animation-components             ~210          -     0×  never
+  animation-components:animejs                                          animation-components             ~160          -     0×  never
+  animation-components:lottie-animations                                animation-components             ~170          -     0×  never
+  animation-components:react-spring-physics                             animation-components             ~200          -     0×  never
+  animation-components:scroll-reveal-libraries                          animation-components             ~180          -     0×  never
+  barba-js:barba-js                                                     barba-js                         ~160          -     0×  never
+  lottie-animations:lottie-animations                                   lottie-animations                ~170          -     0×  never
+  gsap-scrolltrigger:gsap-scrolltrigger                                 gsap-scrolltrigger               ~150          -     0×  never
+  core-3d-animation:babylonjs-engine                                    core-3d-animation                ~160          -     0×  never
+  core-3d-animation:gsap-scrolltrigger                                  core-3d-animation                ~150          -     0×  never
+  core-3d-animation:motion-framer                                       core-3d-animation                ~130          -     0×  never
+  core-3d-animation:react-three-fiber                                   core-3d-animation                ~130          -     0×  never
+  core-3d-animation:threejs-webgl                                       core-3d-animation                ~130          -     0×  never
+  extended-3d-scroll:aframe-webxr                                       extended-3d-scroll               ~170          -     0×  never
+  extended-3d-scroll:barba-js                                           extended-3d-scroll               ~160          -     0×  never
+  extended-3d-scroll:lightweight-3d-effects                             extended-3d-scroll               ~180          -     0×  never
+  extended-3d-scroll:locomotive-scroll                                  extended-3d-scroll               ~200          -     0×  never
+  extended-3d-scroll:pixijs-2d                                          extended-3d-scroll               ~170          -     0×  never
+  extended-3d-scroll:playcanvas-engine                                  extended-3d-scroll               ~180          -     0×  never
+  meta-skills:modern-web-design                                         meta-skills                      ~220          -     0×  never
+  meta-skills:web3d-integration-patterns                                meta-skills                      < 20          -     0×  never
+  motion-framer:motion-framer                                           motion-framer                    < 20          -     0×  never
+  modern-web-design:modern-web-design                                   modern-web-design                < 20          -     0×  never
+  react-spring-physics:react-spring-physics                             react-spring-physics             < 20          -     0×  never
+  react-three-fiber:react-three-fiber                                   react-three-fiber                < 20          -     0×  never
+  rive-interactive:rive-interactive                                     rive-interactive                 < 20          -     0×  never
+  lightweight-3d-effects:lightweight-3d-effects                         lightweight-3d-effects           < 20          -     0×  never
+  locomotive-scroll:locomotive-scroll                                   locomotive-scroll                < 20          -     0×  never
+  ui-ux-pro-max:ui-ux-pro-max                                           ui-ux-pro-max                    ~180          -     3×  19 days
+
+  context = this skill's one-line listing in the system prompt, included every turn
+  (dash = not in the current listing, costs nothing; full SKILL.md loads only when it runs)
+  7d tokens = tokens attributed to the skill over the last 7 days of sessions on this machine
+
+20 skills loaded but never invoked. Each one adds to the system prompt every turn. Disable in /skills, or remove from .claude/skills.
+36 plugin skills loaded but never invoked, from web3d-integration-patterns, threejs-webgl, substance-3d-texturing, pixijs-2d, spline-interactive, scroll-reveal-libraries, animated-component-libraries, animejs, animation-components, barba-js, lottie-animations, gsap-scrolltrigger, core-3d-animation, extended-3d-scroll, meta-skills, motion-framer, modern-web-design, react-spring-physics, react-three-fiber, rive-interactive, lightweight-3d-effects, locomotive-scroll. Each one adds to the system prompt every turn. Plugin skills can't be turned off individually — disable those plugins in /plugin.
+

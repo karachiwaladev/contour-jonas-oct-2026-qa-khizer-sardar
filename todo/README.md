@@ -47,8 +47,8 @@ Browsers restrict IndexedDB on some `file://` and `data:` pages, so serving over
 dependable way.
 
 ## Eval
-`node todo/evals/run.js` runs 49 behaviour checks in headless Chrome and proves they can fail by injecting 35
-deliberate bugs. See `evals/README.md`; recorded, timestamped reports live in `evals/results/`.
+`node todo/evals/run.js` runs the behaviour checks in headless Chrome and proves they can fail by injecting
+deliberate bugs. Counts and coverage are in `evals/README.md`; recorded, timestamped reports live in `evals/results/`.
 
 ## Screenshots
 Verification screenshots for each ticket live in `screenshots/ticket-<N>/`. QA review screenshots (phone width,

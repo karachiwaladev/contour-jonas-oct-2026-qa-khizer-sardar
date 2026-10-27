@@ -67,7 +67,7 @@ empty when there are no tasks, malformed records, a failed read, screen-reader s
 announcements), persistence, malformed and old-format data (including a title that cannot be converted to text),
 XSS, keyboard use and focus, accessible names, phone width (including with the edit form open), failed saves, WCAG
 AA colour contrast in light and dark, and that the page makes no outside network requests. The 39 deliberate bugs
-cover each area, including every defect the independent security reviews of tickets #12 and #13 found.
+cover each area, including each defect that an independent security review has found.
 
 ## How you know the checks can fail
 The eval also runs a **mutation self-check**: it serves copies of the app with a deliberate bug (for example
