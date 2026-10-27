@@ -1,5 +1,69 @@
 {
+  "permissions": {
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(rm -fr *)",
+      "Bash(rm -r -f *)",
+      "Bash(rm -f -r *)",
+      "Bash(rm -Rf *)",
+      "Bash(rm -fR *)",
+      "Bash(rm --recursive --force *)",
+      "Bash(rm --force --recursive *)",
+      "Bash(sudo rm -rf *)",
+      "Bash(git rm -rf *)",
+      "PowerShell(Remove-Item * -Recurse * -Force*)",
+      "PowerShell(Remove-Item * -Force * -Recurse*)",
+      "PowerShell(rd /s /q *)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(git push * --force)",
+      "Bash(git push * --force *)",
+      "Bash(git push * -f)",
+      "Bash(git push * -f *)",
+      "Bash(git push --force-with-lease *)",
+      "Bash(git push * --force-with-lease*)",
+      "Bash(git push --mirror *)",
+      "Bash(curl * | sh)",
+      "Bash(curl * | bash)",
+      "Bash(curl * | sudo *)",
+      "Bash(wget * | sh)",
+      "Bash(wget * | bash)",
+      "Bash(wget * | sudo *)",
+      "PowerShell(iwr * | iex)",
+      "PowerShell(irm * | iex)",
+      "PowerShell(Invoke-WebRequest * | Invoke-Expression)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(**/*.env)",
+      "Bash(cat .env*)",
+      "Bash(cat */.env*)",
+      "Bash(type .env*)",
+      "Bash(less .env*)",
+      "Bash(more .env*)",
+      "Bash(head * .env*)",
+      "Bash(tail * .env*)",
+      "Bash(grep * .env*)",
+      "Bash(source .env*)",
+      "PowerShell(Get-Content *.env*)",
+      "PowerShell(gc *.env*)"
+    ]
+  },
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell|Read|Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/guard.js",
+            "timeout": 10,
+            "onFailure": "block"
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [
