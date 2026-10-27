@@ -59,14 +59,14 @@ Hashes are taken over the file text with CRLF normalized to LF, because git on W
 CRLF while the repository stores LF.
 
 ## What it checks
-49 checks (`c01` to `c49` in `run.js`) cover adding, filters, tags, due dates, priority (default, ordering, the
+55 checks (`c01` to `c55` in `run.js`) cover adding, filters, search (title and tag, case, literal text, combined filters, not saved, overtaken reads), tags, due dates, priority (default, ordering, the
 priority filter and combinations), editing (every field, keyboard Enter and Escape, validation, a kept draft, no
 stale overwrite, a task deleted elsewhere, a filter hiding the edited task), recurring tasks (including the last
 supported date and an edited next occurrence), the task count footer (counts under filters and recurring ticks,
 empty when there are no tasks, malformed records, a failed read, screen-reader structure, no repeated
 announcements), persistence, malformed and old-format data (including a title that cannot be converted to text),
 XSS, keyboard use and focus, accessible names, phone width (including with the edit form open), failed saves, WCAG
-AA colour contrast in light and dark, and that the page makes no outside network requests. The 35 deliberate bugs
+AA colour contrast in light and dark, and that the page makes no outside network requests. The 39 deliberate bugs
 cover each area, including each defect that an independent security review has found.
 
 ## How you know the checks can fail
