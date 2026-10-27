@@ -21,12 +21,16 @@ It blocks:
 |---|---|
 | Recursive and forced delete | `rm -rf`, `rm -fr`, `rm -r -f`, `rm --recursive --force`, `sudo rm -rf`, `git rm -rf`, `find -exec rm -rf`, PowerShell `Remove-Item -Recurse -Force` (and `rm`/`ri` aliases and parameter prefixes), `rd /s /q`, `del /s /q` |
 | Forced push | `git push --force`, `-f`, `-uf`, `--force-with-lease`, `--force-if-includes`, `--mirror`, `origin +main`, `git -C dir push --force` |
+| Deleting remote refs | `git push --delete`, `-d`, `-ud`, `git push origin :branch` |
+| Discarding local work | `git reset --hard` (any position, any `git -C dir`), `git clean -f`, `-fd`, `-fdx`, `-xdf`, `--force` |
 | Downloading and running code | `curl … \| sh`, `wget … \| bash`, `… \| python/node/perl`, `iwr … \| iex`, `iex (iwr …)`, `bash <(curl …)`, `sh -c "$(curl …)"`, `eval "$(curl …)"` |
 | Reading `.env` files | the Read and Grep tools on `.env`, `.env.*` or `*.env`; `cat`/`type`/`head`/`grep`/`source`/`Get-Content`/`cp`… on them; `< .env`; `curl -d @.env`; `git show HEAD:.env` |
 
-It deliberately **does not** block: `rm` of a file, `rm -f` alone, `rm -r` alone, `git push` and `git push -u`, `curl`
-to a file or into `jq`, running a local script, or a commit message or heredoc that merely *mentions* a dangerous
-command. `.env.example` is blocked too (the pattern is `.env.*`); to allow it, narrow the Read rules in
+It deliberately **does not** block: `rm` of a file, `rm -f` alone, `rm -r` alone, `git push` and `git push -u`,
+`git reset` (mixed or `--soft`), `git clean -n` / `--dry-run` / `-i` (the hook allows a dry run even next to `-f`;
+the static deny rule `git clean -f*` still matches `git clean -fdx --dry-run`, so use `git clean -n -d`), `git branch -d`,
+`curl` to a file or into `jq`, running a local script, or a commit message or heredoc that merely *mentions* a
+dangerous command. `.env.example` is blocked too (the pattern is `.env.*`); to allow it, narrow the Read rules in
 `settings.json` and `ENV_NAME` in `guard.js` together.
 
 A blocked call returns a reason to the agent ("ask the user to run it themselves") and is logged to
@@ -39,14 +43,15 @@ through, so do not rely on the guard against a determined or cleverly prompted a
 - indirection: a variable as the command (`c=rm; $c -rf x`), `echo <base64> | base64 -d | sh`, a two-step download
   then run (`curl -o x.sh …; bash x.sh`), `python -c "shutil.rmtree(…)"`, `node -e "readFileSync('.env')"`;
 - reads that never name the file: `grep -r KEY .`, `cat $f` with `f=.env`, PowerShell `Get-Content (Join-Path . '.env')`;
-- destructive commands outside the list: `git reset --hard`, `git clean -fdx`, `git push origin --delete main`.
+- destructive commands outside the list: for example `git branch -D`, `git checkout -- .`, `git restore .`, `git stash drop`,
+  `git filter-branch`, `git update-ref -d`, `mv` over a file, or `> file` truncating one.
 For real containment, run the agent in a sandbox or container without secrets, and use a read-only token.
 
 ### Testing
 ```bash
 node .claude/hooks/guard.selftest.js
 ```
-Feeds the real hook 78 payloads that must be blocked and 50 that must be allowed (including the near misses above),
+Feeds the real hook 97 payloads that must be blocked and 64 that must be allowed (including the near misses above),
 and checks that unreadable input is refused and every block is logged. CI runs it.
 
 Hooks load when a session starts, so a change here applies to the next session.
