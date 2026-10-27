@@ -6,7 +6,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
 <title>Todo</title>
 <style>
-  :root { --bg:#f6f7f9; --card:#fff; --text:#1c1f24; --muted:#6b7280; --accent:#2563eb; --on-accent:#fff; --line:#e5e7eb; --danger:#dc2626; --chip:#e0e7ff; --chip-text:#3730a3;
+  :root { --bg:#f6f7f9; --card:#fff; --text:#1c1f24; --muted:#5f6775; --accent:#2563eb; --on-accent:#fff; --line:#e5e7eb; --danger:#dc2626; --chip:#e0e7ff; --chip-text:#3730a3;
           --p-high-bg:#fee2e2; --p-high:#991b1b; --p-medium-bg:#fef3c7; --p-medium:#92400e; --p-low-bg:#dcfce7; --p-low:#166534; }
   @media (prefers-color-scheme: dark) {
     :root { --bg:#14161a; --card:#1d2026; --text:#e8eaed; --muted:#9aa0a9; --accent:#60a5fa; --on-accent:#0b1220; --line:#2c3038; --danger:#f87171; --chip:#312e81; --chip-text:#c7d2fe;
@@ -52,6 +52,8 @@
   .empty { color:var(--muted); text-align:center; padding:16px; }
   #status { color:var(--muted); padding:0 0 12px; }
   #status:empty { padding:0; }
+  .count { color:var(--muted); font-size:.9rem; margin:12px 4px 0; }
+  .count:empty { margin:0; } /* no tasks: the live region stays in the page, empty, so its first text is announced */
   .formerror { flex:1 1 100%; color:var(--danger); font-size:.9rem; }
   .formerror:empty { display:none; }
   label.sr { position:absolute; left:-9999px; }
@@ -95,6 +97,7 @@
     </select>
   </div>
   <ul id="list"></ul>
+  <footer id="count" class="count" aria-live="polite"></footer>
 </main>
 <script>
 // Tasks live in the browser's IndexedDB (client-side only): store "tasks", keyPath "id".
@@ -137,6 +140,7 @@ const list = document.getElementById('list');
 const statusEl = document.getElementById('status');
 const tagSelect = document.getElementById('tagFilter');
 const priorityFilter = document.getElementById('priorityFilter');
+const countEl = document.getElementById('count');
 
 // A save can fail (storage full or blocked); say so instead of failing silently.
 function showError() {
@@ -213,12 +217,18 @@ function nextDue(due, repeat, today, anchor) {
   return next.length === 10 ? next : '';
 }
 
+// Text from a stored value that is not a string. String() can throw (for example on {toString: 5}, which storage keeps),
+// and one throwing record must not stop the whole list from loading.
+function safeText(v) {
+  try { return String(v ?? ''); } catch (e) { return ''; }
+}
+
 // Records are read back from storage that other scripts on the same origin could also write to. Coerce every
 // field to the shape the rest of the code expects so one malformed record cannot stop the list rendering.
 function normalize(t) {
   return {
     ...t,
-    title: typeof t.title === 'string' ? t.title : String(t.title ?? ''),
+    title: typeof t.title === 'string' ? t.title : safeText(t.title),
     done: t.done === true,
     tags: Array.isArray(t.tags) ? t.tags.filter((x) => typeof x === 'string') : [],
     dueDate: validDue(t.dueDate) ? t.dueDate : undefined,
@@ -484,6 +494,27 @@ function buildEditRow(task) {
   return li;
 }
 
+// The footer counts EVERY task, whatever the status, tag and priority filters show, and is empty when there are no
+// tasks at all (it stays in the page rather than being hidden, because a live region that is shown for the first
+// time is often not announced). A completed occurrence of a recurring task is a task in the list, so it counts as
+// done. The dot is hidden from screen readers; the spaces around it are real text, so they hear "3 open 2 done"
+// without a stray symbol. The text is only rewritten when it changes, so filtering or opening an edit does not make a
+// screen reader announce the same numbers again.
+let lastCount = ''; // what the footer currently shows
+function updateCount(tasks) {
+  const done = tasks.filter((t) => t.done).length;
+  const open = tasks.length - done;
+  const key = tasks.length === 0 ? '' : `${open} open · ${done} done`;
+  if (key === lastCount) return;
+  lastCount = key;
+  if (!key) { countEl.replaceChildren(); return; }
+  const part = (text) => { const s = document.createElement('span'); s.textContent = text; return s; };
+  const dot = document.createElement('span');
+  dot.setAttribute('aria-hidden', 'true');
+  dot.textContent = '·';
+  countEl.replaceChildren(part(`${open} open`), ' ', dot, ' ', part(`${done} done`));
+}
+
 // When the list has no rows left (for example the edited task no longer matches the filter and nothing else does),
 // keyboard focus would fall to <body>; put it on the selected status filter instead.
 function focusFallback(keep) {
@@ -511,12 +542,16 @@ async function render() {
   } catch (e) {
     statusEl.className = 'error';
     statusEl.textContent = 'Could not read your tasks from browser storage.';
+    countEl.replaceChildren(); lastCount = ''; // do not leave numbers on screen that may no longer be true
     return;
   }
   if (editing && !tasks.some((t) => String(t.id) === String(editing.id))) {
     editing = null; // the task was deleted elsewhere (another tab)
     showProblem({ message: 'The task you were editing was deleted elsewhere.' });
   }
+  // Before the early returns below, so it is right even when no task is shown. Guarded so that a problem in the
+  // footer can never stop the list from being drawn.
+  try { updateCount(tasks); } catch (e) { countEl.replaceChildren(); lastCount = ''; }
   refreshTagOptions(tasks);
   document.querySelectorAll('[data-status]').forEach((b) =>
     b.setAttribute('aria-pressed', String(b.dataset.status === view.status)));

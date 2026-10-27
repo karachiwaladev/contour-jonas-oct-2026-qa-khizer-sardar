@@ -14,6 +14,12 @@ and no build step.
   was deleted in the meantime.
 - **Status filter**: All, Incomplete, Completed.
 - **Tag filter** and **priority filter**: dropdowns that combine with each other and with the status filter.
+- **Task count footer** below the list: `3 open · 2 done`. It counts every task whatever the filters show (so the
+  numbers do not move when you filter, and stay right when a filter shows nothing), counts each completed
+  occurrence of a recurring task as done, updates after every change, and is empty when there are no tasks. It is
+  a polite live region that stays in the page (so its first text is announced), is only rewritten when the numbers
+  change (so filtering does not make a screen reader repeat them), and hides the separator dot from screen readers.
+  A stored record whose title cannot be converted to text no longer stops the list from loading.
 - Tasks are ordered by due date (earliest first), then priority (High first), then creation order. Undated tasks
   come last, ordered by priority. Incomplete tasks past their due date are highlighted as overdue. Priority shows
   as a labelled badge, never colour alone.
@@ -37,7 +43,7 @@ Browsers restrict IndexedDB on some `file://` and `data:` pages, so serving over
 dependable way.
 
 ## Eval
-`node todo/evals/run.js` runs 42 behaviour checks in headless Chrome and proves they can fail by injecting 27
+`node todo/evals/run.js` runs 49 behaviour checks in headless Chrome and proves they can fail by injecting 35
 deliberate bugs. See `evals/README.md`; recorded, timestamped reports live in `evals/results/`.
 
 ## Screenshots

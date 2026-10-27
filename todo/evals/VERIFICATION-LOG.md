@@ -9,8 +9,8 @@ detected by `node todo/evals/log.js check` (also run by `verify.js` and CI).
 
 | Event | Last at (UTC) | Result | Commit |
 |---|---|---|---|
-| Eval run | 2026-10-27T05:55:13.330Z | PASSED | `a98f76b628` |
-| verify.js | 2026-10-27T05:55:13.799Z | VERIFIED | `a98f76b628` |
+| Eval run | 2026-10-27T06:47:22.593Z | PASSED | `1c52886857` |
+| verify.js | 2026-10-27T06:47:23.075Z | VERIFIED | `1c52886857` |
 | CI | 2026-10-26T12:05:52.496Z | SUCCESS | `3281c36522` |
 
 ## History (oldest first)
@@ -24,5 +24,9 @@ detected by `node todo/evals/log.js check` (also run by `verify.js` and CI).
 | 5 | 2026-10-26T12:06:45.121Z | verify.js | VERIFIED | chore-eval-gate | `f77c968b74` | 13 passed, 0 warnings, 0 failed on [2026-10-26T12-06-06-445Z.json](todo/evals/results/2026-10-26T12-06-06-445Z.json) |
 | 6 | 2026-10-27T05:55:13.330Z | eval run | PASSED | ticket-12-task-priority | `a98f76b628` | 42/42 checks, 27/27 deliberate bugs caught; app sha256 `5095bd194c…`; [report](todo/evals/results/2026-10-27T05-53-21-388Z.json) |
 | 7 | 2026-10-27T05:55:13.799Z | verify.js | VERIFIED | ticket-12-task-priority | `a98f76b628` | 13 passed, 0 warnings, 0 failed on [2026-10-27T05-53-21-388Z.json](todo/evals/results/2026-10-27T05-53-21-388Z.json) |
+| 8 | 2026-10-27T06:44:21.213Z | eval run | PASSED | ticket-13-task-count-footer | `ecc8c74468` | 49/49 checks, 35/35 deliberate bugs caught; app sha256 `bd87a30824…`; [report](todo/evals/results/2026-10-27T06-42-02-428Z.json) |
+| 9 | 2026-10-27T06:44:21.691Z | verify.js | FAILED | ticket-13-task-count-footer | `ecc8c74468` | 10 passed, 0 warnings, 3 failed on [2026-10-27T06-42-02-428Z.json](todo/evals/results/2026-10-27T06-42-02-428Z.json) |
+| 10 | 2026-10-27T06:47:22.593Z | eval run | PASSED | ticket-13-task-count-footer | `1c52886857` | 49/49 checks, 35/35 deliberate bugs caught; app sha256 `bd87a30824…`; [report](todo/evals/results/2026-10-27T06-45-03-545Z.json) |
+| 11 | 2026-10-27T06:47:23.075Z | verify.js | VERIFIED | ticket-13-task-count-footer | `1c52886857` | 13 passed, 0 warnings, 0 failed on [2026-10-27T06-45-03-545Z.json](todo/evals/results/2026-10-27T06-45-03-545Z.json) |
 
-7 entries.
+11 entries.
