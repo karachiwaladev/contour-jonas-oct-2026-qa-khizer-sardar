@@ -1,0 +1,113 @@
+# Prompt audit: `.` (whole repo)
+
+**Assumptions**
+- **Scope:** the whole working directory's prompt surface. User-level `~/.claude/` and `.claude/settings.json` were not read (they can hold secrets).
+- **Target model:** Claude Sonnet 5.5 (`claude-sonnet-5-5`), the model running this audit. The repo has no application code that calls the API.
+- **Not run:** `claude auth status` (CLAUDE.md:52). The shell needed approval and this session is non-interactive. The audit needs no API access, so it still ran. `retro/evidence/prompt-audit.txt` is empty, so the previous attempt left nothing to build on.
+- **No edits applied.** All four proposed edits are listed in the diff below.
+
+**Inventory**
+- `CLAUDE.md` (54 lines)
+- `README.md`
+- `.claude/skills/factory-loop/SKILL.md`, plus `QA-CHECKLIST.md` and `scripts/ticket-text.js`
+- `.claude/skills/security-audit/SKILL.md`: vendored from upstream, flag-only
+- `.claude/hooks/README.md`
+- `todo/README.md` and `todo/evals/README.md`
+
+There are no rule files, commands, subagents, output styles or `.mcp.json`.
+
+## Summary
+
+The surface is mostly in good shape. Emphasis is calibrated, prohibitions carry reasons or encode real policy, and the numbered build workflow is order-sensitive, so it should stay. Every path, script and workflow named in these files exists. That covers `QA-CHECKLIST.md`, `ticket-text.js`, `eval.yml`, `verify.js`, `verify.selftest.js`, `log.js`, the screenshot folders and the security-audit validators.
+
+The findings are Group 2 drift:
+1. `todo/README.md` restates eval counts that CLAUDE.md says belong only in `evals/README.md`.
+2. The skill description lists trigger phrases one by one.
+3. The browser-tool step offers a menu of alternatives.
+4. `evals/README.md` carries a history narrative.
+
+| Group | Findings |
+|---|---|
+| 1 Dated prompt text | 0 |
+| 2 Brittle config files | 4 edits, 3 flags |
+| 3 Tool descriptions | not applicable |
+| 4 Request config | not applicable (no request-building code) |
+
+## Findings (highest confidence first)
+
+**F1. High · Group 2 conflict · `rewrite`**
+- **Location:** `todo/README.md:46-47`.
+- **Evidence:** "`node todo/evals/run.js` runs 49 behaviour checks … by injecting 35 deliberate bugs."
+- **Conflicts with:** `CLAUDE.md:47-48`: "State check counts only in `<project>/evals/README.md`; elsewhere link the latest report."
+- **Why obsolete:** the counts are correct today (`run.js` has 84 entries, which is 49 plus 35). The rule exists because hand-restated counts drifted before (retro Edit 12).
+- **Direction:** CLAUDE.md is the newer rule (`748ed5a`, today). `todo/README.md` should follow it.
+
+**F2. Medium · Group 2 trigger-case enumeration · `rewrite`**
+- **Location:** `.claude/skills/factory-loop/SKILL.md:3`.
+- **Evidence:** `Use for "run the loop", "fetch the issue", "do/answer/close the ticket", or any mention of Ticket #N.`
+- **Why obsolete:** the description rides in every request (the retro measured about 180 tokens) and lists near-synonymous phrases. An intent category generalises better.
+
+**F3. Medium · Group 2 menu of alternatives · `rewrite`**
+- **Location:** `SKILL.md:62`.
+- **Evidence:** "using the chrome-devtools tools if they are available … If chrome-devtools is not available, use Claude in Chrome or the built-in browser pane, or drive Chrome over the DevTools protocol, and say which you used."
+- **Why obsolete:** four tools are offered with no default. The guide's fix is one default plus an escape hatch. Line 63 already gives a headless-Chrome fallback for screenshots.
+
+**F4. Medium · Group 2 history narrative · `rewrite`**
+- **Location:** `todo/evals/README.md:70`.
+- **Evidence:** "including every defect the independent security reviews of tickets #12 and #13 found."
+- **Why obsolete:** it names incidents rather than the current rule, and it freezes at those two tickets.
+
+**F5. Low · flag** · `SKILL.md:77`
+- The step calls `get_status` / `bind_pr` "from the ccd_pr tools". No such tools are in this session's tool list.
+- The repo doesn't contradict it, since they belong to the harness, so no edit is proposed. It is worth confirming the step still applies to the harness you run.
+
+**F6. Low · flag** · `.claude/hooks/README.md:54`
+- It hard-codes "97 payloads that must be blocked and 64 that must be allowed". These are the same kind of hand-restated count as F1, but CLAUDE.md's rule covers eval counts only.
+- I did not verify the numbers against `guard.selftest.js`.
+
+**F7. Low · flag** · `.claude/skills/security-audit/SKILL.md:3`
+- The description is long and lists use cases. It is vendored from `cloudflare/security-audit-skill` @ `c1c8a8c`. Local edits would diverge from the pin, so leave it.
+
+**Kept deliberately:**
+- Repeating "training repo only" across CLAUDE.md, SKILL.md:25 and README.md. The copies agree.
+- Prohibitions in `SKILL.md:20-43` that encode policy or safety.
+- The idle-tick rule at `SKILL.md:47`, which is backed by retro evidence.
+- The "Why this order" section, which carries reasons.
+- The exact commands in the eval steps, which are fragile operations.
+
+## Proposed diff
+
+```diff
+--- a/todo/README.md
++++ b/todo/README.md
+@@ -45,3 +45,3 @@
+ ## Eval
+-`node todo/evals/run.js` runs 49 behaviour checks in headless Chrome and proves they can fail by injecting 35
+-deliberate bugs. See `evals/README.md`; recorded, timestamped reports live in `evals/results/`.
++`node todo/evals/run.js` runs the behaviour checks in headless Chrome and proves they can fail by injecting
++deliberate bugs. Counts and coverage are in `evals/README.md`; recorded, timestamped reports live in `evals/results/`.
+```
+```diff
+--- a/.claude/skills/factory-loop/SKILL.md
++++ b/.claude/skills/factory-loop/SKILL.md
+@@ -3,1 +3,1 @@
+-description: Work through this repo's open GitHub tickets end to end - do what each ticket asks on its own branch, verify it (eval, QA, security review), open a pull request, and post the evidence on the ticket before asking the user to review and merge. Use for "run the loop", "fetch the issue", "do/answer/close the ticket", or any mention of Ticket #N.
++description: Work through this repo's open GitHub tickets end to end: do the work on its own branch, verify it (eval, QA, security review), open a pull request and post the evidence on the ticket. Use when asked to run the loop or to work on, answer or close a ticket.
+```
+```diff
+@@ -62,1 +62,1 @@
+-   4. **Verify in the browser.** Run the project and exercise every behaviour the ticket asked for, using the chrome-devtools tools if they are available (navigate, interact, read the console and network, take screenshots). If chrome-devtools is not available, use Claude in Chrome or the built-in browser pane, or drive Chrome over the DevTools protocol, and say which you used. Serve the app over ...
++   4. **Verify in the browser.** Run the project and exercise every behaviour the ticket asked for, using the chrome-devtools tools (navigate, interact, read the console and network, take screenshots). If they are unavailable, drive Chrome over the DevTools protocol and say so. Serve the app over ...
+```
+(Keep the rest of line 62 unchanged from "Serve the app over `http://localhost`…".)
+```diff
+--- a/todo/evals/README.md
++++ b/todo/evals/README.md
+@@ -69,2 +69,2 @@
+-AA colour contrast in light and dark, and that the page makes no outside network requests. The 35 deliberate bugs
+-cover each area, including every defect the independent security reviews of tickets #12 and #13 found.
++AA colour contrast in light and dark, and that the page makes no outside network requests. The 35 deliberate bugs
++cover each area, including each defect that an independent security review has found.
+```
+
+F1 is a Group 2 edit, so it is proposed only and should be confirmed before you apply it.
