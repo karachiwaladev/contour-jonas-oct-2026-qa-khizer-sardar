@@ -117,6 +117,14 @@ const MUTATIONS = [
     from: 'if (key === lastCount) return;', to: '' },
   { id: 'm35-unconvertible-title-blocks-list', check: 'c48', desc: 'a stored title that cannot be converted to text stops the whole list loading',
     from: 'try { return String(v ?? \'\'); } catch (e) { return \'\'; }', to: 'return String(v ?? \'\');' },
+  { id: 'm8-search-ignores-tags', check: 'c50', desc: 'the search box looks at the title only, not the tags',
+    from: 'if (!hit(task.title) && !(Array.isArray(task.tags) && task.tags.some(hit))) return false;', to: 'if (!hit(task.title)) return false;' },
+  { id: 'm9-search-case-sensitive', check: 'c50', desc: 'the search is case-sensitive',
+    from: 's.toLowerCase().includes(view.search)', to: 's.includes(view.search)' },
+  { id: 'm10-search-not-trimmed', check: 'c50', desc: 'spaces around the search text are not ignored',
+    from: 'searchBox.value.trim().toLowerCase()', to: 'searchBox.value.toLowerCase()' },
+  { id: 'm11-stale-render-draws', check: 'c55', desc: 'a list read that was overtaken by a newer render still draws and overwrites it',
+    from: 'if (mine !== renderSeq) { if (keep && !pendingFocus) pendingFocus = keep; return; }', to: '' },
 ];
 
 // ---- Page-side helpers, injected after every navigation ----
@@ -711,6 +719,95 @@ async function main() {
     { id: 'c24', name: 'The only network requests are for the local page itself', run: async () => {
       const foreign = network.filter((u) => !u.startsWith(origin + '/') && !u.startsWith('about:') && !u.startsWith('data:'));
       eq(foreign, [], 'requests to other hosts');
+    } },
+    { id: 'c50', name: 'Search filters by title and tag as you type: case-insensitive, trimmed, literal (no regex), empty search shows everything, no match shows the empty state', run: async () => {
+      await fresh();
+      const r = await ev(T(`await T.add('Buy Milk', '', '', 'shop'); await T.add('Call Bob', '', '', 'milk-run, work'); await T.add('Read (book)'); await T.add('Plan');
+        const names = () => T.rows().map(T.titleOf).sort();
+        const setSearch = async (v) => { T.$('search').value = v; T.$('search').dispatchEvent(new Event('input', { bubbles: true })); await T.wait(300); };
+        const out = { all: names() };
+        await setSearch('milk'); out.milk = names();
+        await setSearch('MILK'); out.upper = names();
+        await setSearch('  milk  '); out.padded = names();
+        await setSearch('shop'); out.tag = names();
+        await setSearch('work'); out.tag2 = names();
+        await setSearch('(book'); out.literal = names();
+        await setSearch('.*'); out.regex = names();
+        await setSearch('zzz'); out.none = [names(), document.querySelector('#list li.empty') && document.querySelector('#list li.empty').textContent];
+        await setSearch(''); out.cleared = names();
+        return out`));
+      eq(r, { all: ['Buy Milk', 'Call Bob', 'Plan', 'Read (book)'], milk: ['Buy Milk', 'Call Bob'], upper: ['Buy Milk', 'Call Bob'], padded: ['Buy Milk', 'Call Bob'], tag: ['Buy Milk'], tag2: ['Call Bob'],
+        literal: ['Read (book)'], regex: [], none: [[], 'No matching tasks.'], cleared: ['Buy Milk', 'Call Bob', 'Plan', 'Read (book)'] }, 'search results');
+      // Real key events: typing updates the list as you go, and focus stays in the box.
+      await ev(`document.getElementById('search').focus()`);
+      await typeText('plan'); await sleep(300);
+      eq(await ev(T(`return [T.rows().map(T.titleOf), document.activeElement.id]`)), [['Plan'], 'search'], 'typed search');
+    } },
+    { id: 'c51', name: 'Search combines with the status, tag and priority filters, keeps the due-date order, and clearing it leaves the other filters in place', run: async () => {
+      await fresh();
+      const r = await ev(T(`const addP = async (title, p, due, tags) => { T.$('priority').value = p; await T.add(title, due, '', tags); };
+        await addP('Alpha milk', 'high', T.ds(3), 'work'); await addP('Beta milk', 'low', T.ds(1), 'home'); await addP('Gamma milk', 'high', '', 'home'); await addP('Delta', 'high', '', 'work');
+        await T.click(T.rowFor('Gamma milk').querySelector('input'));
+        const names = () => T.rows().map(T.titleOf);
+        const setSearch = async (v) => { T.$('search').value = v; T.$('search').dispatchEvent(new Event('input', { bubbles: true })); await T.wait(300); };
+        const setSel = async (id, v) => { T.$(id).value = v; T.$(id).dispatchEvent(new Event('change')); await T.wait(300); };
+        const status = async (s) => { await T.click(document.querySelector('[data-status=' + s + ']')); };
+        const out = {};
+        await setSearch('milk'); out.milk = names();
+        await status('incomplete'); out.incomplete = names();
+        await setSel('priorityFilter', 'high'); out.incompleteHigh = names();
+        await setSel('priorityFilter', ''); await status('all'); await setSel('tagFilter', 'home'); out.home = names();
+        await status('completed'); out.homeDone = names();
+        await status('all'); await setSel('priorityFilter', 'high'); out.homeHigh = names();
+        await setSearch(''); out.clearedKeepsFilters = names();
+        return out`));
+      eq(r, { milk: ['Beta milk', 'Alpha milk', 'Gamma milk'], incomplete: ['Beta milk', 'Alpha milk'], incompleteHigh: ['Alpha milk'], home: ['Beta milk', 'Gamma milk'], homeDone: ['Gamma milk'],
+        homeHigh: ['Gamma milk'], clearedKeepsFilters: ['Gamma milk'] }, 'combined filters');
+    } },
+    { id: 'c52', name: 'The search text is not saved: after a reload the box is empty and every task shows', run: async () => {
+      await fresh();
+      await ev(T(`await T.add('Keep'); await T.add('Other'); T.$('search').value = 'keep'; T.$('search').dispatchEvent(new Event('input', { bubbles: true })); await T.wait(300);`));
+      eq(await ev(T(`return T.rows().length`)), 1, 'filtered before reload');
+      await reload();
+      eq(await ev(T(`return [T.$('search').value, T.rows().map(T.titleOf).sort()]`)), ['', ['Keep', 'Other']], 'after reload');
+    } },
+    { id: 'c53', name: 'The task being edited stays visible when the search would hide it, and the footer counts every task whatever is searched', run: async () => {
+      await fresh();
+      const r = await ev(T(`await T.add('One'); await T.add('Two');
+        const setSearch = async (v) => { T.$('search').value = v; T.$('search').dispatchEvent(new Event('input', { bubbles: true })); await T.wait(300); };
+        const out = {};
+        await T.click(document.querySelector('button[aria-label="Edit One"]'));
+        await setSearch('two'); out.rows = T.rows().map(T.titleOf); out.editOpen = !!T.editRow(); out.footer = T.$('count').textContent;
+        return out`));
+      eq(r, { rows: ['Two'], editOpen: true, footer: '2 open · 0 done' }, 'edit and footer under search');
+    } },
+    { id: 'c54', name: 'Stored records with missing or odd titles and tags do not break the search', run: async () => {
+      await fresh();
+      const r = await ev(T(`await T.raw((s) => s.add({ title: 'Odd', done: false, created: 1, tags: 'work' })); await T.raw((s) => s.add({ title: 'Tagged', done: false, created: 2, tags: [5, null, 'Milk'] }));
+        await T.raw((s) => s.add({ done: false, created: 3 })); await window.render();
+        const setSearch = async (v) => { T.$('search').value = v; T.$('search').dispatchEvent(new Event('input', { bubbles: true })); await T.wait(300); };
+        const out = {};
+        await setSearch('milk'); out.milk = T.rows().map(T.titleOf);
+        await setSearch('work'); out.work = T.rows().map(T.titleOf);
+        out.status = T.$('status').textContent; return out`));
+      eq(r, { milk: ['Tagged'], work: [], status: '' }, 'search over odd records');
+    } },
+    { id: 'c55', name: 'A list read that is overtaken by a newer render never overwrites it (typing while a task is added)', run: async () => {
+      await fresh();
+      const r = await ev(T(`await T.add('Base a');
+        const orig = IDBDatabase.prototype.transaction; let slow = 1;
+        IDBDatabase.prototype.transaction = function (store, mode) {
+          const t = orig.call(this, store, mode);
+          if (slow && mode === 'readonly') { slow--; return new Proxy(t, { set(o, k, v) { o[k] = k === 'oncomplete' ? (e) => setTimeout(() => v(e), 500) : v; return true; }, get(o, k) { const x = o[k]; return typeof x === 'function' ? x.bind(o) : x; } }); }
+          return t;
+        };
+        try {
+          T.$('search').value = 'a'; T.$('search').dispatchEvent(new Event('input', { bubbles: true })); // render 1: reads the old list, finishes late
+          await T.raw((s) => s.add({ title: 'Zed a', done: false, created: 2 })); await window.render(); // render 2: reads the new list
+          await T.wait(900);
+        } finally { IDBDatabase.prototype.transaction = orig; }
+        return T.rows().map(T.titleOf).sort()`));
+      eq(r, ['Base a', 'Zed a'], 'list after a slow, overtaken read');
     } },
   ];
 

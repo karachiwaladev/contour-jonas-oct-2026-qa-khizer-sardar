@@ -17,10 +17,11 @@
   main { max-width:640px; margin:0 auto; padding:32px 16px; }
   h1 { margin:0 0 16px; font-size:1.5rem; }
   form { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
-  input[type=text], input[type=date], select { padding:10px 12px; font:inherit; color:inherit; background:var(--card); border:1px solid var(--line); border-radius:8px; }
+  input[type=text], input[type=date], input[type=search], select { padding:10px 12px; font:inherit; color:inherit; background:var(--card); border:1px solid var(--line); border-radius:8px; }
   #title, .f-title { flex:1 1 100%; }
   #tags, .f-tags { flex:1 1 200px; }
   button { font:inherit; cursor:pointer; border:0; border-radius:8px; padding:10px 14px; background:var(--accent); color:var(--on-accent); }
+  #search { flex:1 1 160px; min-width:0; }
   .filters { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-bottom:12px; }
   .segmented { display:flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
   .segmented button { background:var(--card); color:var(--text); border-radius:0; padding:8px 14px; }
@@ -95,6 +96,8 @@
       <option value="medium">Medium</option>
       <option value="low">Low</option>
     </select>
+    <label class="sr" for="search">Search tasks</label>
+    <input id="search" type="search" placeholder="Search title or tag" autocomplete="off" maxlength="100">
   </div>
   <ul id="list"></ul>
   <footer id="count" class="count" aria-live="polite"></footer>
@@ -109,7 +112,7 @@
 // next occurrence as a new task. Editing a task sets edited: true so an un-tick never deletes an edited task.
 const DB_NAME = 'todo-app', STORE = 'tasks';
 let db;
-const view = { status: 'all', tag: '', priority: '' };
+const view = { status: 'all', tag: '', priority: '', search: '' }; // search is never saved: a reload starts empty
 let editing = null;      // { id, draft } while a task is being edited; the draft survives list re-renders
 let pendingFocus = null; // { id, ctl, index } asks the next render() to put keyboard focus on a control
 
@@ -140,6 +143,7 @@ const list = document.getElementById('list');
 const statusEl = document.getElementById('status');
 const tagSelect = document.getElementById('tagFilter');
 const priorityFilter = document.getElementById('priorityFilter');
+const searchBox = document.getElementById('search');
 const countEl = document.getElementById('count');
 
 // A save can fail (storage full or blocked); say so instead of failing silently.
@@ -341,6 +345,11 @@ function matches(task) {
   if (view.status === 'incomplete' && task.done) return false;
   if (view.tag && !(task.tags || []).includes(view.tag)) return false;
   if (view.priority && task.priority !== view.priority) return false;
+  if (view.search) {
+    // Case-insensitive, literal substring of the title or of any tag. Tags and title come from storage, so guard types.
+    const hit = (s) => typeof s === 'string' && s.toLowerCase().includes(view.search);
+    if (!hit(task.title) && !(Array.isArray(task.tags) && task.tags.some(hit))) return false;
+  }
   return true;
 }
 
@@ -523,7 +532,9 @@ function focusFallback(keep) {
   if (b) b.focus();
 }
 
+let renderSeq = 0; // each render() takes a number; one that is overtaken while reading storage draws nothing
 async function render() {
+  const mine = ++renderSeq;
   // The list is rebuilt on every change, which would drop keyboard focus to <body>. Remember which control
   // had focus (and its row position) so it can be put back afterwards. Every focusable row control carries a
   // data-ctl name for this.
@@ -545,6 +556,7 @@ async function render() {
     countEl.replaceChildren(); lastCount = ''; // do not leave numbers on screen that may no longer be true
     return;
   }
+  if (mine !== renderSeq) { if (keep && !pendingFocus) pendingFocus = keep; return; } // a newer render will draw
   if (editing && !tasks.some((t) => String(t.id) === String(editing.id))) {
     editing = null; // the task was deleted elsewhere (another tab)
     showProblem({ message: 'The task you were editing was deleted elsewhere.' });
@@ -685,6 +697,7 @@ document.querySelectorAll('[data-status]').forEach((b) =>
   b.addEventListener('click', () => { view.status = b.dataset.status; render(); }));
 tagSelect.addEventListener('change', () => { view.tag = tagSelect.value; render(); });
 priorityFilter.addEventListener('change', () => { view.priority = priorityFilter.value; render(); });
+searchBox.addEventListener('input', () => { view.search = searchBox.value.trim().toLowerCase(); render(); });
 
 openDb().then((d) => { db = d; render(); })
   .catch(() => { statusEl.textContent = 'Could not open the browser database; tasks will not be saved.'; });

@@ -14,6 +14,10 @@ and no build step.
   was deleted in the meantime.
 - **Status filter**: All, Incomplete, Completed.
 - **Tag filter** and **priority filter**: dropdowns that combine with each other and with the status filter.
+- **Search box** (ticket #18): filters the list by title or tag as you type. It ignores case and spaces around the text,
+  treats what you type literally (no patterns), combines with the status, tag and priority filters, and keeps the
+  due-date order. Clearing it shows the other filters' results again. It is not saved: a reload starts empty. The task
+  being edited stays visible, and the footer still counts every task.
 - **Task count footer** below the list: `3 open · 2 done`. It counts every task whatever the filters show (so the
   numbers do not move when you filter, and stay right when a filter shows nothing), counts each completed
   occurrence of a recurring task as done, updates after every change, and is empty when there are no tasks. It is
