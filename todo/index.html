@@ -3,12 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
 <title>Todo</title>
 <style>
-  :root { --bg:#f6f7f9; --card:#fff; --text:#1c1f24; --muted:#6b7280; --accent:#2563eb; --on-accent:#fff; --line:#e5e7eb; --danger:#dc2626; --chip:#e0e7ff; --chip-text:#3730a3; }
+  :root { --bg:#f6f7f9; --card:#fff; --text:#1c1f24; --muted:#6b7280; --accent:#2563eb; --on-accent:#fff; --line:#e5e7eb; --danger:#dc2626; --chip:#e0e7ff; --chip-text:#3730a3;
+          --p-high-bg:#fee2e2; --p-high:#991b1b; --p-medium-bg:#fef3c7; --p-medium:#92400e; --p-low-bg:#dcfce7; --p-low:#166534; }
   @media (prefers-color-scheme: dark) {
-    :root { --bg:#14161a; --card:#1d2026; --text:#e8eaed; --muted:#9aa0a9; --accent:#60a5fa; --on-accent:#0b1220; --line:#2c3038; --danger:#f87171; --chip:#312e81; --chip-text:#c7d2fe; }
+    :root { --bg:#14161a; --card:#1d2026; --text:#e8eaed; --muted:#9aa0a9; --accent:#60a5fa; --on-accent:#0b1220; --line:#2c3038; --danger:#f87171; --chip:#312e81; --chip-text:#c7d2fe;
+            --p-high-bg:#7f1d1d; --p-high:#fecaca; --p-medium-bg:#78350f; --p-medium:#fde68a; --p-low-bg:#14532d; --p-low:#bbf7d0; }
   }
   * { box-sizing: border-box; }
   body { margin:0; background:var(--bg); color:var(--text); font:16px/1.4 system-ui, sans-serif; }
@@ -16,8 +18,8 @@
   h1 { margin:0 0 16px; font-size:1.5rem; }
   form { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
   input[type=text], input[type=date], select { padding:10px 12px; font:inherit; color:inherit; background:var(--card); border:1px solid var(--line); border-radius:8px; }
-  #title { flex:1 1 100%; }
-  #tags { flex:1 1 200px; }
+  #title, .f-title { flex:1 1 100%; }
+  #tags, .f-tags { flex:1 1 200px; }
   button { font:inherit; cursor:pointer; border:0; border-radius:8px; padding:10px 14px; background:var(--accent); color:var(--on-accent); }
   .filters { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-bottom:12px; }
   .segmented { display:flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
@@ -26,17 +28,32 @@
   ul { list-style:none; margin:0; padding:0; background:var(--card); border:1px solid var(--line); border-radius:8px; }
   li { display:flex; align-items:center; gap:10px; padding:10px 12px; border-bottom:1px solid var(--line); }
   li:last-child { border-bottom:0; }
+  li.editing { display:block; }
+  .editform { margin:0; }
   .body { flex:1; min-width:0; }
   .title { word-break:break-word; }
   li.done .title { text-decoration:line-through; color:var(--muted); }
   .meta { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:4px; font-size:.85rem; color:var(--muted); }
   .overdue .due { color:var(--danger); font-weight:600; }
   .chip { background:var(--chip); color:var(--chip-text); border-radius:999px; padding:1px 8px; font-size:.8rem; }
+  .prio { border-radius:999px; padding:1px 8px; font-size:.8rem; font-weight:600; }
+  .prio-high { background:var(--p-high-bg); color:var(--p-high); }
+  .prio-medium { background:var(--p-medium-bg); color:var(--p-medium); }
+  .prio-low { background:var(--p-low-bg); color:var(--p-low); }
   .repeat { color:var(--accent); font-weight:600; }
   #status.error { color:var(--danger); }
+  .actions { display:flex; gap:4px; }
   li button.del { background:transparent; color:var(--danger); padding:4px 8px; }
+  li button.edit { background:transparent; color:var(--accent); padding:4px 8px; }
+  li button.edit:disabled { opacity:.45; cursor:not-allowed; }
+  button.cancel { background:transparent; color:var(--text); border:1px solid var(--line); }
+  @media (max-width: 480px) { .actions { flex-direction:column; align-items:stretch; } }
   input[type=checkbox] { width:18px; height:18px; }
-  .empty, #status { color:var(--muted); text-align:center; padding:16px; }
+  .empty { color:var(--muted); text-align:center; padding:16px; }
+  #status { color:var(--muted); padding:0 0 12px; }
+  #status:empty { padding:0; }
+  .formerror { flex:1 1 100%; color:var(--danger); font-size:.9rem; }
+  .formerror:empty { display:none; }
   label.sr { position:absolute; left:-9999px; }
 </style>
 </head>
@@ -52,9 +69,15 @@
       <option value="weekly">Weekly</option>
       <option value="monthly">Monthly</option>
     </select>
+    <select id="priority" aria-label="Priority">
+      <option value="high">High</option>
+      <option value="medium" selected>Medium</option>
+      <option value="low">Low</option>
+    </select>
     <input id="tags" type="text" placeholder="Tags: work, home" autocomplete="off" maxlength="100" aria-label="Tags">
     <button type="submit">Add</button>
   </form>
+  <div id="status" role="status"></div>
   <div class="filters">
     <div class="segmented" role="group" aria-label="Status filter">
       <button type="button" data-status="all" aria-pressed="true">All</button>
@@ -63,19 +86,29 @@
     </div>
     <label class="sr" for="tagFilter">Filter by tag</label>
     <select id="tagFilter"><option value="">All tags</option></select>
+    <label class="sr" for="priorityFilter">Filter by priority</label>
+    <select id="priorityFilter">
+      <option value="">All priorities</option>
+      <option value="high">High</option>
+      <option value="medium">Medium</option>
+      <option value="low">Low</option>
+    </select>
   </div>
   <ul id="list"></ul>
-  <div id="status" role="status"></div>
 </main>
 <script>
 // Tasks live in the browser's IndexedDB (client-side only): store "tasks", keyPath "id".
-// A task is { id, title, done, created, dueDate?: 'YYYY-MM-DD', tags?: string[],
-//             repeat?: 'daily'|'weekly'|'monthly', anchorDay?: number, spawned?: boolean, nextId?: number }.
-// The optional fields keep tasks saved by earlier versions working. A repeating task needs a dueDate.
-// Completing one leaves it as history (spawned: true, nextId) and creates the next occurrence as a new task.
+// A task is { id, title, done, created, priority?: 'high'|'medium'|'low', dueDate?: 'YYYY-MM-DD', tags?: string[],
+//             repeat?: 'daily'|'weekly'|'monthly', anchorDay?: number, spawned?: boolean, nextId?: number,
+//             edited?: boolean }.
+// The optional fields keep tasks saved by earlier versions working (a missing priority counts as medium). A
+// repeating task needs a dueDate. Completing one leaves it as history (spawned: true, nextId) and creates the
+// next occurrence as a new task. Editing a task sets edited: true so an un-tick never deletes an edited task.
 const DB_NAME = 'todo-app', STORE = 'tasks';
 let db;
-const view = { status: 'all', tag: '' };
+const view = { status: 'all', tag: '', priority: '' };
+let editing = null;      // { id, draft } while a task is being edited; the draft survives list re-renders
+let pendingFocus = null; // { id, ctl, index } asks the next render() to put keyboard focus on a control
 
 function openDb() {
   return new Promise((resolve, reject) => {
@@ -103,11 +136,16 @@ const deleteTask = (id) => tx('readwrite', (s) => s.delete(id));
 const list = document.getElementById('list');
 const statusEl = document.getElementById('status');
 const tagSelect = document.getElementById('tagFilter');
+const priorityFilter = document.getElementById('priorityFilter');
 
 // A save can fail (storage full or blocked); say so instead of failing silently.
 function showError() {
   statusEl.className = 'error';
   statusEl.textContent = 'Could not save that change. Browser storage may be full or blocked.';
+}
+function showProblem(problem) {
+  statusEl.className = 'error';
+  statusEl.textContent = problem.message;
 }
 function clearStatus() {
   statusEl.className = '';
@@ -122,6 +160,8 @@ function todayString() {
 
 // --- Repeat dates (pure functions on 'YYYY-MM-DD' strings) ---
 const REPEAT_LABELS = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' };
+const PRIORITY_LABELS = { high: 'High', medium: 'Medium', low: 'Low' };
+const PRIORITY_RANK = { high: 0, medium: 1, low: 2 };
 
 function formatDate(y, m, d) {
   const pad = (n) => String(n).padStart(2, '0');
@@ -135,6 +175,14 @@ function validDue(s) {
   const [y, m, d] = s.split('-').map(Number);
   const dt = new Date(y, m - 1, d);
   return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d;
+}
+
+// One set of rules for the add form and the edit form. Returns null, or { message, field } for the first problem.
+function validateFields(title, due, repeat) {
+  if (!title) return { message: 'Enter a title.', field: 'title' };
+  if (due && !validDue(due)) return { message: 'Enter a due date between 1970 and 9999.', field: 'due' };
+  if (repeat && !due) return { message: 'Choose a due date for a repeating task.', field: 'due' };
+  return null;
 }
 
 // The k-th occurrence after `due`. Monthly steps use `anchor`, the day of month the series started on, and
@@ -152,12 +200,17 @@ function stepDue(due, repeat, k, anchor) {
   return formatDate(dt.getFullYear(), dt.getMonth() + 1, dt.getDate());
 }
 
-// Next due date: counted from the old due date, advanced to the first date after `today`.
+// Next due date: counted from the old due date, advanced to the first date after `today`. Returns '' when the
+// next date would fall after the last supported date (9999-12-31): the series simply ends there. Without that
+// guard a five-digit year compares below today as a string, and the loop runs for millions of steps.
 function nextDue(due, repeat, today, anchor) {
   let k = 1;
   let next = stepDue(due, repeat, k, anchor);
-  while (next <= today) next = stepDue(due, repeat, ++k, anchor);
-  return next;
+  while (next <= today) {
+    if (next.length !== 10) return '';
+    next = stepDue(due, repeat, ++k, anchor);
+  }
+  return next.length === 10 ? next : '';
 }
 
 // Records are read back from storage that other scripts on the same origin could also write to. Coerce every
@@ -169,7 +222,12 @@ function normalize(t) {
     done: t.done === true,
     tags: Array.isArray(t.tags) ? t.tags.filter((x) => typeof x === 'string') : [],
     dueDate: validDue(t.dueDate) ? t.dueDate : undefined,
-    repeat: Object.hasOwn(REPEAT_LABELS, t.repeat) ? t.repeat : undefined,
+    // typeof first: Object.hasOwn coerces an array like ['monthly'] to the string 'monthly' and would accept it.
+    repeat: typeof t.repeat === 'string' && Object.hasOwn(REPEAT_LABELS, t.repeat) ? t.repeat : undefined,
+    priority: typeof t.priority === 'string' && Object.hasOwn(PRIORITY_LABELS, t.priority) ? t.priority : 'medium',
+    anchorDay: Number.isInteger(t.anchorDay) && t.anchorDay >= 1 && t.anchorDay <= 31 ? t.anchorDay : undefined,
+    nextId: Number.isInteger(t.nextId) ? t.nextId : undefined, // a non-key here would make s.get throw and abort the un-tick
+    edited: t.edited === true,
     created: Number.isFinite(t.created) ? t.created : 0,
   };
 }
@@ -189,20 +247,30 @@ function setDone(task, done) {
       if (done && stored.repeat && stored.dueDate && !stored.spawned) {
         // Completing a repeating task keeps it as history and adds the next occurrence.
         const anchorDay = stored.anchorDay || Number(stored.dueDate.slice(8));
+        const nextDate = nextDue(stored.dueDate, stored.repeat, todayString(), anchorDay);
+        if (!nextDate) { s.put({ ...stored, done: true }); return; } // the series ends at the last supported date
         const add = s.add({
           title: stored.title, done: false, created: Date.now(), tags: stored.tags, repeat: stored.repeat,
-          dueDate: nextDue(stored.dueDate, stored.repeat, todayString(), anchorDay), anchorDay,
+          priority: stored.priority, // inherited
+          dueDate: nextDate, anchorDay,
         });
         // spawned guards against a second copy on re-tick; nextId lets an un-tick undo the spawn.
         add.onsuccess = () => s.put({ ...stored, done: true, spawned: true, nextId: add.result });
       } else if (!done && stored.nextId) {
         // Un-ticking undoes the completion: drop the next occurrence if it is still untouched, so the
-        // series never has two open copies. If it was already completed, leave it alone.
+        // series never has two open copies. If it was already completed, or you edited it, leave it alone
+        // (an edit is your work and is never deleted for you) and keep this task's spawned/nextId, so
+        // ticking it again does not add yet another copy.
         s.get(stored.nextId).onsuccess = (ev) => {
           const next = ev.target.result;
-          if (next && next.done !== true) s.delete(stored.nextId);
-          const { nextId, ...rest } = stored;
-          s.put({ ...rest, done: false, spawned: false });
+          const keep = next && (next.done === true || next.edited === true);
+          if (!keep) {
+            if (next) s.delete(stored.nextId);
+            const { nextId, ...rest } = stored;
+            s.put({ ...rest, done: false, spawned: false });
+          } else {
+            s.put({ ...stored, done: false }); // keep spawned and nextId: re-ticking must not add another copy
+          }
         };
       } else {
         s.put({ ...stored, done });
@@ -211,16 +279,43 @@ function setDone(task, done) {
   });
 }
 
+// Saving an edit is also ONE transaction that re-reads the stored task. `patch` holds only the fields the user
+// changed in the form (compared with what the form opened with), and only those are applied to the fresh record,
+// so a change made elsewhere meanwhile (another tab changing the priority, done, spawned, nextId...) is never
+// overwritten with the form's stale copy. Resolves 'saved', 'unchanged', or 'gone' (the task was deleted).
+function saveEdit(id, patch) {
+  return new Promise((resolve, reject) => {
+    let outcome = 'saved';
+    const t = db.transaction(STORE, 'readwrite');
+    const s = t.objectStore(STORE);
+    t.oncomplete = () => resolve(outcome);
+    t.onerror = t.onabort = () => reject(t.error);
+    s.get(id).onsuccess = (e) => {
+      if (!e.target.result) { outcome = 'gone'; return; }
+      const stored = normalize(e.target.result);
+      const keys = Object.keys(patch).filter((k) => JSON.stringify(patch[k]) !== JSON.stringify(stored[k]));
+      if (!keys.length) { outcome = 'unchanged'; return; } // nothing to change: leave the record (and its edited flag) alone
+      const next = { ...stored, edited: true };
+      for (const k of keys) next[k] = patch[k];
+      // A new due date or repeat starts a new series, so a monthly task re-anchors on its new day.
+      if (keys.includes('dueDate') || keys.includes('repeat')) delete next.anchorDay;
+      s.put(next);
+    };
+  });
+}
+
 function parseTags(text) {
   return [...new Set(text.split(',').map((t) => t.trim().toLowerCase()).filter(Boolean))];
 }
 
-// Earliest due date first; tasks without a date go last, in creation order.
+// Earliest due date first, then High before Medium before Low, then creation order. Tasks without a date come
+// last, ordered by priority and then creation order.
 function byDue(a, b) {
-  if (a.dueDate && b.dueDate) return a.dueDate.localeCompare(b.dueDate) || a.created - b.created;
+  const rank = PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority];
+  if (a.dueDate && b.dueDate) return a.dueDate.localeCompare(b.dueDate) || rank || a.created - b.created;
   if (a.dueDate) return -1;
   if (b.dueDate) return 1;
-  return a.created - b.created;
+  return rank || a.created - b.created;
 }
 
 function refreshTagOptions(tasks) {
@@ -235,6 +330,7 @@ function matches(task) {
   if (view.status === 'completed' && !task.done) return false;
   if (view.status === 'incomplete' && task.done) return false;
   if (view.tag && !(task.tags || []).includes(view.tag)) return false;
+  if (view.priority && task.priority !== view.priority) return false;
   return true;
 }
 
@@ -245,16 +341,169 @@ function emptyRow(text) {
   return li;
 }
 
+// --- Editing ---
+const rowIndex = (id) => [...list.children].findIndex((r) => r.dataset.id === String(id));
+
+function startEdit(task) {
+  if (editing) return;
+  clearStatus();
+  editing = {
+    id: task.id, error: '', saving: false,
+    // What the form opened with: a save sends only the fields that differ from this.
+    orig: { title: task.title, dueDate: task.dueDate, repeat: task.repeat, priority: task.priority, tags: task.tags },
+    draft: { title: task.title, due: task.dueDate || '', repeat: task.repeat || '', priority: task.priority, tags: task.tags.join(', ') },
+  };
+  pendingFocus = { id: task.id, ctl: 'f-title', index: rowIndex(task.id) };
+  render();
+}
+
+// Every edit action names the task it belongs to and does nothing if that edit is no longer the open one, or if
+// a save is already in flight (a save cannot be cancelled half way). This stops a late Enter or Escape, or a
+// save finishing after the user moved on, from touching a different edit.
+function endEdit(task) {
+  if (!editing || editing.id !== task.id) return render(); // stale: just refresh
+  pendingFocus = { id: task.id, ctl: 'edit', index: rowIndex(task.id) };
+  editing = null;
+  return render();
+}
+
+function cancelEdit(task) {
+  if (!editing || editing.saving || editing.id !== task.id) return;
+  clearStatus();
+  return endEdit(task);
+}
+
+// A problem with an edit is shown inside the edit form, next to the Save button, not in the page's status line
+// (which can be far off screen below a long list). The message is kept in `editing` so a re-render restores it.
+function showEditError(message) {
+  editing.error = message;
+  const el = list.querySelector('li.editing .formerror');
+  if (el) el.textContent = message;
+}
+
+async function commitEdit(task) {
+  if (!editing || editing.id !== task.id || editing.saving) return;
+  const d = editing.draft;
+  const title = d.title.trim();
+  const problem = validateFields(title, d.due, d.repeat);
+  if (problem) {
+    showEditError(problem.message);
+    const field = list.querySelector(`li.editing [data-ctl="f-${problem.field}"]`);
+    if (field) field.focus();
+    return;
+  }
+  showEditError('');
+  const values = { title, dueDate: d.due || undefined, repeat: d.repeat || undefined, priority: d.priority, tags: parseTags(d.tags) };
+  const patch = {};
+  for (const k of Object.keys(values)) {
+    if (JSON.stringify(values[k]) !== JSON.stringify(editing.orig[k])) patch[k] = values[k];
+  }
+  editing.saving = true;
+  let outcome;
+  try {
+    outcome = await saveEdit(task.id, patch);
+  } catch (e) {
+    if (editing && editing.id === task.id) {
+      editing.saving = false;
+      showEditError('Could not save that change. Browser storage may be full or blocked.'); // the form stays open so nothing typed is lost
+    }
+    return;
+  }
+  if (outcome === 'gone') showProblem({ message: 'That task no longer exists, so your edit was not saved.' });
+  endEdit(task);
+}
+
+function buildEditRow(task) {
+  const d = editing.draft;
+  const li = document.createElement('li');
+  li.dataset.id = task.id;
+  li.className = 'editing';
+  const form = document.createElement('form');
+  form.className = 'editform';
+  form.setAttribute('aria-label', 'Edit ' + task.title);
+
+  const control = (el, ctl, label, key) => {
+    el.dataset.ctl = ctl;
+    el.setAttribute('aria-label', label);
+    if (key) {
+      el.value = d[key];
+      const sync = () => { d[key] = el.value; };
+      el.addEventListener('input', sync);
+      el.addEventListener('change', sync);
+    }
+    return el;
+  };
+  const select = (pairs) => {
+    const el = document.createElement('select');
+    for (const [value, text] of pairs) el.append(new Option(text, value));
+    return el;
+  };
+  const text = (cls, max, placeholder) => {
+    const el = document.createElement('input');
+    el.type = 'text';
+    el.className = cls;
+    el.maxLength = max;
+    el.placeholder = placeholder; // a visible hint, since the form has no separate labels
+    el.autocomplete = 'off';
+    return el;
+  };
+
+  const titleIn = control(text('f-title', 200, 'Title'), 'f-title', 'Title', 'title');
+  const dueIn = document.createElement('input');
+  dueIn.type = 'date';
+  dueIn.min = '1970-01-01';
+  dueIn.max = '9999-12-31';
+  control(dueIn, 'f-due', 'Due date', 'due');
+  const repeatIn = control(select([['', 'Never repeat'], ...Object.entries(REPEAT_LABELS)]), 'f-repeat', 'Repeat', 'repeat');
+  const prioIn = control(select(Object.entries(PRIORITY_LABELS)), 'f-priority', 'Priority', 'priority');
+  const tagsIn = control(text('f-tags', 100, 'Tags: work, home'), 'f-tags', 'Tags', 'tags');
+
+  const save = document.createElement('button');
+  save.type = 'submit';
+  save.className = 'save';
+  save.textContent = 'Save';
+  control(save, 'save', 'Save changes to ' + task.title);
+  const cancel = document.createElement('button');
+  cancel.type = 'button';
+  cancel.className = 'cancel';
+  cancel.textContent = 'Cancel';
+  control(cancel, 'cancel', 'Cancel editing ' + task.title);
+  cancel.onclick = () => cancelEdit(task);
+
+  form.addEventListener('submit', (e) => { e.preventDefault(); commitEdit(task); });
+  form.addEventListener('keydown', (e) => {
+    // Escape that an IME or a native picker has already handled must not also discard the draft.
+    if (e.key === 'Escape' && !e.isComposing && !e.defaultPrevented) { e.preventDefault(); cancelEdit(task); }
+  });
+  const error = document.createElement('div');
+  error.className = 'formerror';
+  error.setAttribute('role', 'alert');
+  error.textContent = editing.error;
+  form.append(titleIn, dueIn, repeatIn, prioIn, tagsIn, save, cancel, error);
+  li.append(form);
+  return li;
+}
+
+// When the list has no rows left (for example the edited task no longer matches the filter and nothing else does),
+// keyboard focus would fall to <body>; put it on the selected status filter instead.
+function focusFallback(keep) {
+  if (!keep) return;
+  const b = document.querySelector('.segmented [aria-pressed=true]');
+  if (b) b.focus();
+}
+
 async function render() {
   // The list is rebuilt on every change, which would drop keyboard focus to <body>. Remember which control
-  // had focus (and its row position) so it can be put back afterwards.
+  // had focus (and its row position) so it can be put back afterwards. Every focusable row control carries a
+  // data-ctl name for this.
   const active = document.activeElement;
   const row = active && list.contains(active) ? active.closest('li[data-id]') : null;
-  const keep = row ? {
+  const keep = pendingFocus || (row && active.dataset.ctl ? {
     id: row.dataset.id,
     index: [...list.children].indexOf(row),
-    control: active.type === 'checkbox' ? 'input' : 'button.del',
-  } : null;
+    ctl: active.dataset.ctl,
+  } : null);
+  pendingFocus = null;
 
   let tasks;
   try {
@@ -264,17 +513,24 @@ async function render() {
     statusEl.textContent = 'Could not read your tasks from browser storage.';
     return;
   }
+  if (editing && !tasks.some((t) => String(t.id) === String(editing.id))) {
+    editing = null; // the task was deleted elsewhere (another tab)
+    showProblem({ message: 'The task you were editing was deleted elsewhere.' });
+  }
   refreshTagOptions(tasks);
   document.querySelectorAll('[data-status]').forEach((b) =>
     b.setAttribute('aria-pressed', String(b.dataset.status === view.status)));
 
   list.replaceChildren();
-  if (!tasks.length) { list.append(emptyRow('No tasks yet.')); return; }
-  const shown = tasks.filter(matches).sort(byDue);
-  if (!shown.length) { list.append(emptyRow('No matching tasks.')); return; }
+  if (!tasks.length) { list.append(emptyRow('No tasks yet.')); focusFallback(keep); return; }
+  // The task being edited always stays visible, even if a filter change would hide it, so its form (and the
+  // disabled Edit buttons on the other rows) never looks stuck.
+  const shown = tasks.filter((t) => matches(t) || (editing && String(editing.id) === String(t.id))).sort(byDue);
+  if (!shown.length) { list.append(emptyRow('No matching tasks.')); focusFallback(keep); return; }
 
   const today = todayString();
   for (const task of shown) {
+    if (editing && String(editing.id) === String(task.id)) { list.append(buildEditRow(task)); continue; }
     const overdue = !task.done && task.dueDate && task.dueDate < today;
     const li = document.createElement('li');
     li.dataset.id = task.id;
@@ -282,6 +538,7 @@ async function render() {
 
     const box = document.createElement('input');
     box.type = 'checkbox';
+    box.dataset.ctl = 'box';
     box.checked = task.done;
     box.setAttribute('aria-label', task.title); // names the task for screen readers; the state is the checkbox's
     box.onchange = async () => {
@@ -297,32 +554,43 @@ async function render() {
     title.textContent = task.title; // textContent keeps user input from being parsed as HTML
     body.append(title);
 
-    if (task.dueDate || task.repeat || (task.tags && task.tags.length)) {
-      const meta = document.createElement('div');
-      meta.className = 'meta';
-      if (task.dueDate) {
-        const due = document.createElement('span');
-        due.className = 'due';
-        due.textContent = (overdue ? 'Overdue · ' : 'Due ') + task.dueDate;
-        meta.append(due);
-      }
-      if (task.repeat) {
-        const rep = document.createElement('span');
-        rep.className = 'repeat';
-        rep.textContent = '↻ ' + REPEAT_LABELS[task.repeat];
-        meta.append(rep);
-      }
-      for (const tag of task.tags || []) {
-        const chip = document.createElement('span');
-        chip.className = 'chip';
-        chip.textContent = tag;
-        meta.append(chip);
-      }
-      body.append(meta);
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    const prio = document.createElement('span');
+    prio.className = 'prio prio-' + task.priority;
+    prio.textContent = PRIORITY_LABELS[task.priority];
+    meta.append(prio);
+    if (task.dueDate) {
+      const due = document.createElement('span');
+      due.className = 'due';
+      due.textContent = (overdue ? 'Overdue · ' : 'Due ') + task.dueDate;
+      meta.append(due);
     }
+    if (task.repeat) {
+      const rep = document.createElement('span');
+      rep.className = 'repeat';
+      rep.textContent = '↻ ' + REPEAT_LABELS[task.repeat];
+      meta.append(rep);
+    }
+    for (const tag of task.tags || []) {
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+      chip.textContent = tag;
+      meta.append(chip);
+    }
+    body.append(meta);
+
+    const edit = document.createElement('button');
+    edit.className = 'edit';
+    edit.dataset.ctl = 'edit';
+    edit.textContent = 'Edit';
+    edit.setAttribute('aria-label', 'Edit ' + task.title);
+    edit.disabled = !!editing; // one edit at a time, so an unsaved draft is never discarded by starting another
+    edit.onclick = () => startEdit(task);
 
     const del = document.createElement('button');
     del.className = 'del';
+    del.dataset.ctl = 'del';
     del.textContent = 'Delete';
     del.setAttribute('aria-label', 'Delete ' + task.title);
     del.onclick = async () => {
@@ -331,16 +599,20 @@ async function render() {
       render();
     };
 
-    li.append(box, body, del);
+    const actions = document.createElement('div');
+    actions.className = 'actions';
+    actions.append(edit, del);
+    li.append(box, body, actions);
     list.append(li);
   }
 
   if (keep) {
     const rows = [...list.querySelectorAll('li[data-id]')];
-    const same = rows.find((r) => r.dataset.id === keep.id);
-    // If the row is gone (deleted), land on the row that took its place, or the last one.
+    const same = rows.find((r) => r.dataset.id === String(keep.id));
+    // If the row is gone (deleted, or edited out of the current filter), land on the row that took its place,
+    // or the last one.
     const target = same || rows[Math.min(keep.index, rows.length - 1)];
-    const control = target && (target.querySelector(keep.control) || target.querySelector('input'));
+    const control = target && (target.querySelector(`[data-ctl="${keep.ctl}"]`) || target.querySelector('[data-ctl="box"]'));
     if (control) control.focus();
   }
 }
@@ -349,17 +621,19 @@ document.getElementById('add').addEventListener('submit', async (e) => {
   e.preventDefault();
   const title = document.getElementById('title').value.trim();
   if (!title) return;
-  const task = { title, done: false, created: Date.now(), tags: parseTags(document.getElementById('tags').value) };
   const due = document.getElementById('due').value;
   const repeat = document.getElementById('repeat').value;
-  if ((repeat && !due) || (due && !validDue(due))) {
-    statusEl.className = 'error';
-    statusEl.textContent = due
-      ? 'Enter a due date between 1970 and 9999.'
-      : 'Choose a due date for a repeating task.';
-    document.getElementById('due').focus();
+  const problem = validateFields(title, due, repeat);
+  if (problem) {
+    showProblem(problem);
+    document.getElementById(problem.field).focus();
     return;
   }
+  const chosen = document.getElementById('priority').value;
+  const task = {
+    title, done: false, created: Date.now(), tags: parseTags(document.getElementById('tags').value),
+    priority: Object.hasOwn(PRIORITY_LABELS, chosen) ? chosen : 'medium',
+  };
   clearStatus();
   if (due) task.dueDate = due;
   if (repeat) task.repeat = repeat;
@@ -375,6 +649,7 @@ document.getElementById('add').addEventListener('submit', async (e) => {
 document.querySelectorAll('[data-status]').forEach((b) =>
   b.addEventListener('click', () => { view.status = b.dataset.status; render(); }));
 tagSelect.addEventListener('change', () => { view.tag = tagSelect.value; render(); });
+priorityFilter.addEventListener('change', () => { view.priority = priorityFilter.value; render(); });
 
 openDb().then((d) => { db = d; render(); })
   .catch(() => { statusEl.textContent = 'Could not open the browser database; tasks will not be saved.'; });

@@ -4,21 +4,32 @@ A single-page todo app. Tasks are stored client-side in the browser's IndexedDB,
 and no build step.
 
 ## Features
-- Add a task with an optional **due date** and optional **tags** (comma separated, saved lowercase).
-- Mark tasks done, or delete them.
+- Add a task with an optional **due date**, a **priority** (High, Medium or Low; Medium by default) and optional
+  **tags** (comma separated, saved lowercase).
+- Mark tasks done, **edit** them, or delete them. Edit opens an inline form for the title, due date, repeat,
+  priority and tags: Enter saves, Escape cancels, and problems (empty title, a repeat without a due date, an
+  impossible date) are shown inside the form. An edit in progress keeps its text when the list refreshes and stays
+  visible even if a filter change would hide it. Saving applies only the fields you changed, so it never
+  overwrites changes made elsewhere (for example another tab changing the priority), and it tells you if the task
+  was deleted in the meantime.
 - **Status filter**: All, Incomplete, Completed.
-- **Tag filter**: a dropdown of every tag in use. It combines with the status filter.
-- Tasks are ordered by due date (earliest first, undated last). Incomplete tasks past their due date are
-  highlighted as overdue.
+- **Tag filter** and **priority filter**: dropdowns that combine with each other and with the status filter.
+- Tasks are ordered by due date (earliest first), then priority (High first), then creation order. Undated tasks
+  come last, ordered by priority. Incomplete tasks past their due date are highlighted as overdue. Priority shows
+  as a labelled badge, never colour alone.
 - **Recurring tasks**: choose Daily, Weekly or Monthly (a due date is required). Completing a recurring task
   keeps it as completed history and creates the next occurrence with the same title, tags and repeat. The next
   date counts from the old due date and advances to the first date after today; monthly repeats keep the
   original day and clamp at month end (Jan 31 -> Feb 28/29 -> Mar 31; each occurrence remembers the day the
-  series started on). Un-ticking a completed recurring task undoes it: the next occurrence is removed if it is
-  still open. A series continues until its open task is deleted.
+  series started on); the next occurrence inherits the priority. Un-ticking a completed recurring task undoes it:
+  the next occurrence is removed if it is still open and you have not edited it (an edited occurrence is yours and
+  is never deleted for you; ticking the original again does not add a third copy). Editing a task's due date or
+  repeat starts a new series for monthly dates. A series continues until its open task is deleted, or until the
+  last supported date (9999-12-31), where it ends.
 - Due dates must be real dates between 1970 and 9999. If a save fails (storage full or blocked) the app says so
   and keeps what you typed.
-- Tasks saved by the earlier versions (no date, tags or repeat) still load.
+- Tasks saved by the earlier versions (no date, tags, repeat or priority) still load; a missing priority counts as
+  Medium.
 
 ## Run
 Serve the folder over HTTP and open it, for example `npx serve todo`. Tasks persist per browser and origin.
@@ -26,7 +37,7 @@ Browsers restrict IndexedDB on some `file://` and `data:` pages, so serving over
 dependable way.
 
 ## Eval
-`node todo/evals/run.js` runs 24 behaviour checks in headless Chrome and proves they can fail by injecting six
+`node todo/evals/run.js` runs 42 behaviour checks in headless Chrome and proves they can fail by injecting 27
 deliberate bugs. See `evals/README.md`; recorded, timestamped reports live in `evals/results/`.
 
 ## Screenshots
